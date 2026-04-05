@@ -136,11 +136,19 @@ result = await executor.execute_trade(transaction)
 | Create and configure TradingClient instance | [trading_client.py](examples/trading_client.py) | `python examples/trading_client.py` |
 | Share infrastructure across multiple wallets | [shared_infrastructure.py](examples/shared_infrastructure.py) | `python examples/shared_infrastructure.py` |
 | PumpFun token sniping trading | [pumpfun_sniper_trading.py](examples/pumpfun_sniper_trading.py) | `python examples/pumpfun_sniper_trading.py` |
+| PumpFun token copy trading | [pumpfun_copy_trading.py](examples/pumpfun_copy_trading.py) | `python examples/pumpfun_copy_trading.py` |
 | PumpSwap trading operations | [pumpswap_trading.py](examples/pumpswap_trading.py) | `python examples/pumpswap_trading.py` |
+| PumpSwap direct trading (via RPC) | [pumpswap_direct_trading.py](examples/pumpswap_direct_trading.py) | `python examples/pumpswap_direct_trading.py` |
 | Raydium CPMM trading operations | [raydium_cpmm_trading.py](examples/raydium_cpmm_trading.py) | `python examples/raydium_cpmm_trading.py` |
+| Raydium AMM V4 trading operations | [raydium_amm_v4_trading.py](examples/raydium_amm_v4_trading.py) | `python examples/raydium_amm_v4_trading.py` |
 | Meteora DAMM V2 trading operations | [meteora_damm_v2_trading.py](examples/meteora_damm_v2_trading.py) | `python examples/meteora_damm_v2_trading.py` |
+| Bonk token sniping trading | [bonk_sniper_trading.py](examples/bonk_sniper_trading.py) | `python examples/bonk_sniper_trading.py` |
+| Bonk token copy trading | [bonk_copy_trading.py](examples/bonk_copy_trading.py) | `python examples/bonk_copy_trading.py` |
 | Custom instruction middleware example | [middleware_system.py](examples/middleware_system.py) | `python examples/middleware_system.py` |
 | Address lookup table example | [address_lookup.py](examples/address_lookup.py) | `python examples/address_lookup.py` |
+| Nonce cache (durable nonce) example | [nonce_cache.py](examples/nonce_cache.py) | `python examples/nonce_cache.py` |
+| Wrap/unwrap SOL to/from WSOL example | [wsol_wrapper.py](examples/wsol_wrapper.py) | `python examples/wsol_wrapper.py` |
+| Seed trading example | [seed_trading.py](examples/seed_trading.py) | `python examples/seed_trading.py` |
 | Gas fee strategy example | [gas_fee_strategy.py](examples/gas_fee_strategy.py) | `python examples/gas_fee_strategy.py` |
 
 ## Security Features
