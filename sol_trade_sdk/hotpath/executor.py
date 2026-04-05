@@ -14,13 +14,22 @@ from typing import Optional, List, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
-from .state import (
-    HotPathState,
-    HotPathConfig,
-    TradingContext,
-    StaleBlockhashError,
-    HotPathError,
-)
+try:
+    from .state import (
+        HotPathState,
+        HotPathConfig,
+        TradingContext,
+        StaleBlockhashError,
+        HotPathError,
+    )
+except ImportError:
+    from state import (
+        HotPathState,
+        HotPathConfig,
+        TradingContext,
+        StaleBlockhashError,
+        HotPathError,
+    )
 
 try:
     from solders.transaction import VersionedTransaction
@@ -225,8 +234,14 @@ class HotPathExecutor:
         clients: List[Any],
         opts: ExecuteOptions,
     ) -> ExecuteResult:
-        """Submit to all SWQoS clients in parallel - NO RPC"""
-        
+        """Submit to all SWQoS clients in parallel - NO RPC
+
+        Security fixes applied:
+        - Proper task creation with asyncio.create_task
+        - Proper cleanup of remaining tasks
+        - Exception handling with context preservation
+        """
+
         async def submit_to_client(client: Any) -> ExecuteResult:
             try:
                 sig = await asyncio.wait_for(
@@ -238,16 +253,22 @@ class HotPathExecutor:
                     success=True,
                     swqos_type=client.swqos_type,
                 )
+            except asyncio.TimeoutError:
+                return ExecuteResult(
+                    success=False,
+                    error=f"Timeout after {opts.timeout}s",
+                    swqos_type=getattr(client, 'swqos_type', 'unknown'),
+                )
             except Exception as e:
                 return ExecuteResult(
                     success=False,
-                    error=str(e),
-                    swqos_type=client.swqos_type,
+                    error=f"{type(e).__name__}: {str(e)}",
+                    swqos_type=getattr(client, 'swqos_type', 'unknown'),
                 )
-        
-        # Race all submissions
-        tasks = [submit_to_client(c) for c in clients]
-        
+
+        # Create proper asyncio Tasks (not just coroutines)
+        tasks = [asyncio.create_task(submit_to_client(c)) for c in clients]
+
         try:
             # Use asyncio.as_completed for first-success-wins
             for coro in asyncio.as_completed(tasks):
@@ -257,14 +278,52 @@ class HotPathExecutor:
                     for task in tasks:
                         if not task.done():
                             task.cancel()
+                    # Wait for cancellations to complete (with timeout)
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.gather(*tasks, return_exceptions=True),
+                            timeout=5.0
+                        )
+                    except asyncio.TimeoutError:
+                        pass  # Some tasks didn't cancel in time
                     return result
         except Exception as e:
-            return ExecuteResult(success=False, error=str(e))
-        
-        # All failed
+            # Cancel all tasks on error
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                pass
+            return ExecuteResult(success=False, error=f"Execution error: {type(e).__name__}: {str(e)}")
+        finally:
+            # Ensure all tasks are cleaned up
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+        # All failed - gather all errors
+        errors = []
+        for task in tasks:
+            if task.done() and not task.cancelled():
+                try:
+                    result = task.result()
+                    if not result.success:
+                        errors.append(f"{result.swqos_type}: {result.error}")
+                except Exception as e:
+                    errors.append(f"Exception: {str(e)}")
+
+        error_msg = "All parallel submissions failed"
+        if errors:
+            error_msg += f" | Errors: {'; '.join(errors[:3])}"
+
         return ExecuteResult(
             success=False,
-            error="All parallel submissions failed",
+            error=error_msg,
         )
     
     async def _execute_sequential(
@@ -387,8 +446,11 @@ def create_hot_path_executor(
         # Now ready for hot path execution
         result = await executor.execute("buy", tx_bytes)
     """
-    from ..rpc.client import AsyncRPCClient
-    
+    try:
+        from ..rpc.client import AsyncRPCClient
+    except ImportError:
+        from rpc.client import AsyncRPCClient
+
     rpc_client = AsyncRPCClient(rpc_url)
     executor = HotPathExecutor(rpc_client, config)
     

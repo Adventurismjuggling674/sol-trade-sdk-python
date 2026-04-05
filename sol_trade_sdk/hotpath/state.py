@@ -390,3 +390,9 @@ class MissingAccountError(HotPathError):
 class ContextExpiredError(HotPathError):
     """Trading context has expired"""
     pass
+
+
+# ===== Type Aliases for Compatibility =====
+
+AccountStateCache = AccountState
+PoolStateCache = PoolState
