@@ -47,9 +47,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sol-trade-sdk/sol-trade-sdk-python"
-Documentation = "https://github.com/sol-trade-sdk/sol-trade-sdk-python#readme"
-Repository = "https://github.com/sol-trade-sdk/sol-trade-sdk-python"
+Homepage = "https://github.com/0xfnzero/sol-trade-sdk-python"
+Documentation = "https://github.com/0xfnzero/sol-trade-sdk-python#readme"
+Repository = "https://github.com/0xfnzero/sol-trade-sdk-python"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]

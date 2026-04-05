@@ -155,6 +155,6 @@ MIT License
 ## 联系方式
 
 - 官方网站: https://fnzero.dev/
-- 项目仓库: https://github.com/sol-trade-sdk/sol-trade-sdk-python
+- 项目仓库: https://github.com/0xfnzero/sol-trade-sdk-python
 - Telegram 群组: https://t.me/fnzero_group
 - Discord: https://discord.gg/vuazbGkqQE
