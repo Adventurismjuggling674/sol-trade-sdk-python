@@ -129,6 +129,20 @@ executor = HotPathExecutor(state)
 result = await executor.execute_trade(transaction)
 ```
 
+## Usage Examples Summary
+
+| Description | File | Run Command |
+|-------------|------|-------------|
+| Create and configure TradingClient instance | [trading_client.py](examples/trading_client.py) | `python examples/trading_client.py` |
+| Share infrastructure across multiple wallets | [shared_infrastructure.py](examples/shared_infrastructure.py) | `python examples/shared_infrastructure.py` |
+| PumpFun token sniping trading | [pumpfun_sniper_trading.py](examples/pumpfun_sniper_trading.py) | `python examples/pumpfun_sniper_trading.py` |
+| PumpSwap trading operations | [pumpswap_trading.py](examples/pumpswap_trading.py) | `python examples/pumpswap_trading.py` |
+| Raydium CPMM trading operations | [raydium_cpmm_trading.py](examples/raydium_cpmm_trading.py) | `python examples/raydium_cpmm_trading.py` |
+| Meteora DAMM V2 trading operations | [meteora_damm_v2_trading.py](examples/meteora_damm_v2_trading.py) | `python examples/meteora_damm_v2_trading.py` |
+| Custom instruction middleware example | [middleware_system.py](examples/middleware_system.py) | `python examples/middleware_system.py` |
+| Address lookup table example | [address_lookup.py](examples/address_lookup.py) | `python examples/address_lookup.py` |
+| Gas fee strategy example | [gas_fee_strategy.py](examples/gas_fee_strategy.py) | `python examples/gas_fee_strategy.py` |
+
 ## Security Features
 
 ```python
