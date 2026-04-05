@@ -73,8 +73,12 @@ class Instruction:
 
 
 def get_mayhem_fee_recipient_random() -> Tuple[bytes, AccountMeta]:
-    """Get random Mayhem fee recipient and its AccountMeta"""
-    recipient = random.choice(MAYHEM_FEE_RECIPIENTS)
+    """Get cryptographically secure random Mayhem fee recipient and its AccountMeta.
+    
+    Uses secrets module for cryptographically secure random selection.
+    """
+    import secrets
+    recipient = secrets.choice(MAYHEM_FEE_RECIPIENTS)
     meta = AccountMeta(recipient, False, False)
     return recipient, meta
 
