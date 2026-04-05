@@ -1,7 +1,10 @@
-# Sol Trade SDK for Python
+<div align="center">
+    <h1>🚀 Sol Trade SDK for Python</h1>
+    <h3><em>全面的 Python SDK，用于无缝 Solana DEX 交易</em></h3>
+</div>
 
 <p align="center">
-    <strong>高性能 Python SDK，用于低延迟 Solana DEX 交易</strong>
+    <strong>一个面向低延迟 Solana DEX 交易机器人的高性能 Python SDK。该 SDK 以速度和效率为核心设计，支持与 PumpFun、Pump AMM（PumpSwap）、Bonk、Meteora DAMM v2、Raydium AMM v4 以及 Raydium CPMM 进行无缝、高吞吐量的交互，适用于对延迟高度敏感的交易策略。</strong>
 </p>
 
 <p align="center">
@@ -23,11 +26,31 @@
 </p>
 
 <p align="center">
-    <a href="README.md">English</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README.md">English</a> |
     <a href="https://fnzero.dev/">官网</a> |
     <a href="https://t.me/fnzero_group">Telegram</a> |
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
+
+## 📋 目录
+
+- [✨ 项目特性](#-项目特性)
+- [📦 安装](#-安装)
+- [🛠️ 使用示例](#️-使用示例)
+  - [📋 使用示例](#-使用示例)
+  - [⚡ 交易参数](#-交易参数)
+  - [📊 使用示例汇总表格](#-使用示例汇总表格)
+  - [⚙️ SWQoS 服务配置说明](#️-swqos-服务配置说明)
+  - [🔧 中间件系统说明](#-中间件系统说明)
+  - [🔍 地址查找表](#-地址查找表)
+  - [🔍 Nonce 缓存](#-nonce-缓存)
+- [💰 Cashback 支持（PumpFun / PumpSwap）](#-cashback-支持pumpfun--pumpswap)
+- [🛡️ MEV 保护服务](#️-mev-保护服务)
+- [📁 项目结构](#-项目结构)
+- [📄 许可证](#-许可证)
+- [💬 联系方式](#-联系方式)
+- [⚠️ 重要注意事项](#️-重要注意事项)
 
 ---
 
@@ -42,224 +65,324 @@
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 |
 
----
+## ✨ 项目特性
 
-一个全面的高性能 Python SDK，用于 Solana DEX 交易，支持多种协议和 MEV 提供商。
+1. **PumpFun 交易**: 支持`购买`、`卖出`功能
+2. **PumpSwap 交易**: 支持 PumpSwap 池的交易操作
+3. **Bonk 交易**: 支持 Bonk 的交易操作
+4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
+5. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
+6. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
+7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane 等服务
+8. **并发交易**: 同时使用多个 MEV 服务发送交易，最快的成功，其他失败
+9. **统一交易接口**: 使用统一的交易协议类型进行交易操作
+10. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
+11. **共享基础设施**: 多钱包可共享同一套 RPC 与 SWQoS 客户端，降低资源占用
 
-## 特性
+## 📦 安装
 
-- **多 DEX 支持**: PumpFun、PumpSwap、Bonk、Raydium AMM V4、Raydium CPMM、Meteora DAMM V2
-- **SWQoS 集成**: 多个 MEV 提供商用于交易提交
-- **高性能**: LRU/TTL/分片缓存、连接池、并行执行
-- **低延迟**: 针对亚秒级交易执行优化
-- **安全优先**: 整数溢出保护、安全密钥存储、输入验证
-- **零-RPC 热路径**: 所有 RPC 调用在交易执行前完成
-- **模块化设计**: 按需使用
+### 直接克隆（推荐）
 
-## 安装
+将此项目克隆到您的项目目录：
+
+```bash
+cd your_project_root_directory
+git clone https://github.com/0xfnzero/sol-trade-sdk-python
+```
+
+安装依赖：
+
+```bash
+cd sol-trade-sdk-python
+pip install -e .
+```
+
+或添加到您的 `requirements.txt`：
+
+```
+sol-trade-sdk @ ./sol-trade-sdk-python
+```
+
+或添加到您的 `pyproject.toml`：
+
+```toml
+[project]
+dependencies = [
+    "sol-trade-sdk @ ./sol-trade-sdk-python",
+]
+```
+
+### 使用 PyPI
 
 ```bash
 pip install sol-trade-sdk
 ```
 
-## 快速开始
+## 🛠️ 使用示例
 
-### 基本交易
+### 📋 使用示例
 
+#### 1. 创建 TradingClient 实例
+
+您可以参考 [示例：创建 TradingClient 实例](examples/trading_client.py)。
+
+**方法一：简单方式（单钱包）**
 ```python
 import asyncio
-from sol_trade_sdk import (
-    create_gas_fee_strategy,
-    TradeExecutor,
-    TradeConfig,
-    SwqosType,
-    TradeType,
-)
+from sol_trade_sdk import TradingClient, TradeConfig, SwqosConfig, SwqosRegion
 
 async def main():
-    # 创建 Gas 策略
-    gas_strategy = create_gas_fee_strategy()
-
-    # 创建交易执行器
-    config = TradeConfig(
-        rpc_url="https://api.mainnet-beta.solana.com",
-        swqos_configs=[{"type": SwqosType.JITO}],
-        gas_fee_strategy=gas_strategy,
-    )
-
-    executor = TradeExecutor(config)
-
-    # 执行交易
-    result = await executor.execute(
-        trade_type=TradeType.BUY,
-        transaction=serialized_tx,
-    )
-    print(f"交易签名: {result.signature}")
+    # 钱包
+    payer = Keypair.from_secret_key(/* 您的密钥 */)
+    
+    # RPC URL
+    rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx"
+    
+    # 可配置多个 SWQoS 服务
+    swqos_configs = [
+        SwqosConfig(type="Default", rpc_url=rpc_url),
+        SwqosConfig(type="Jito", uuid="your_uuid", region=SwqosRegion.FRANKFURT),
+        SwqosConfig(type="Bloxroute", api_token="your_api_token", region=SwqosRegion.FRANKFURT),
+        SwqosConfig(type="Astralane", api_key="your_api_key", region=SwqosRegion.FRANKFURT),
+    ]
+    
+    # 创建 TradeConfig 实例
+    trade_config = TradeConfig(rpc_url, swqos_configs)
+    
+    # 创建 TradingClient
+    client = TradingClient(payer, trade_config)
 
 asyncio.run(main())
 ```
 
-### PumpFun 交易
+**方法二：共享基础设施（多钱包）**
+
+对于多钱包场景，创建一次基础设施并在钱包间共享。
+参见 [示例：共享基础设施](examples/shared_infrastructure.py)。
 
 ```python
-from sol_trade_sdk.instruction.pumpfun import PumpFunInstructionBuilder
-from sol_trade_sdk.calc.pumpfun import getBuyTokenAmountFromSolAmount
+from sol_trade_sdk import TradingInfrastructure, InfrastructureConfig
 
-# 计算输入 SOL 可获得的代币数量
-tokens = getBuyTokenAmountFromSolAmount(
-    virtual_token_reserves=1_073_000_000_000_000,
-    virtual_sol_reserves=30_000_000_000,
-    real_token_reserves=793_000_000_000_000,
-    has_creator=True,
-    amount=1_000_000_000,  # 1 SOL
+# 创建一次基础设施（开销大）
+infra_config = InfrastructureConfig(rpc_url, swqos_configs)
+infrastructure = TradingInfrastructure(infra_config)
+
+# 创建多个客户端共享同一基础设施（快速）
+client1 = TradingClient.from_infrastructure(payer1, infrastructure)
+client2 = TradingClient.from_infrastructure(payer2, infrastructure)
+```
+
+#### 2. 配置 Gas 费策略
+
+```python
+from sol_trade_sdk import GasFeeStrategy
+
+# 创建 GasFeeStrategy 实例
+gas_fee_strategy = GasFeeStrategy()
+# 设置全局策略
+gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001)
+```
+
+#### 3. 构建交易参数
+
+```python
+from sol_trade_sdk import TradeBuyParams, DexType, TradeTokenType
+
+buy_params = TradeBuyParams(
+    dex_type=DexType.PUMPSWAP,
+    input_token_type=TradeTokenType.WSOL,
+    mint=mint_pubkey,
+    input_token_amount=buy_sol_amount,
+    slippage_basis_points=500,
+    recent_blockhash=recent_blockhash,
+    # 使用 extension_params 传递协议特定参数
+    extension_params={"type": "PumpSwap", "params": pumpswap_params},
+    address_lookup_table_account=None,
+    wait_transaction_confirmed=True,
+    create_input_token_ata=True,
+    close_input_token_ata=True,
+    create_mint_ata=True,
+    durable_nonce=None,
+    fixed_output_token_amount=None,
+    gas_fee_strategy=gas_fee_strategy,
+    simulate=False,
+)
+```
+
+#### 4. 执行交易
+
+```python
+result = await client.buy(buy_params)
+print(f"交易签名: {result.signature}")
+```
+
+### ⚡ 交易参数
+
+关于所有交易参数（包括 `TradeBuyParams` 和 `TradeSellParams`）的详细信息，请参阅交易参数文档。
+
+#### 关于 ShredStream
+
+使用 shred 订阅事件时，由于 shred 的特性，您无法获取交易事件的完整信息。
+在使用时，请确保您的交易逻辑所依赖的参数在 shred 中可用。
+
+### 📊 使用示例汇总表格
+
+| 描述 | 运行命令 | 源码 |
+|------|----------|------|
+| 创建并配置 TradingClient 实例 | `python examples/trading_client.py` | [examples/trading_client.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/trading_client.py) |
+| 多钱包共享基础设施 | `python examples/shared_infrastructure.py` | [examples/shared_infrastructure.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/shared_infrastructure.py) |
+| PumpFun 代币狙击交易 | `python examples/pumpfun_sniper_trading.py` | [examples/pumpfun_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_sniper_trading.py) |
+| PumpFun 代币跟单交易 | `python examples/pumpfun_copy_trading.py` | [examples/pumpfun_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_copy_trading.py) |
+| PumpSwap 交易操作 | `python examples/pumpswap_trading.py` | [examples/pumpswap_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_trading.py) |
+| PumpSwap 直接交易（通过 RPC） | `python examples/pumpswap_direct_trading.py` | [examples/pumpswap_direct_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_direct_trading.py) |
+| Raydium CPMM 交易操作 | `python examples/raydium_cpmm_trading.py` | [examples/raydium_cpmm_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_cpmm_trading.py) |
+| Raydium AMM V4 交易操作 | `python examples/raydium_amm_v4_trading.py` | [examples/raydium_amm_v4_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_amm_v4_trading.py) |
+| Meteora DAMM V2 交易操作 | `python examples/meteora_damm_v2_trading.py` | [examples/meteora_damm_v2_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/meteora_damm_v2_trading.py) |
+| Bonk 代币狙击交易 | `python examples/bonk_sniper_trading.py` | [examples/bonk_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_sniper_trading.py) |
+| Bonk 代币跟单交易 | `python examples/bonk_copy_trading.py` | [examples/bonk_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_copy_trading.py) |
+| 自定义指令中间件示例 | `python examples/middleware_system.py` | [examples/middleware_system.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/middleware_system.py) |
+| 地址查找表示例 | `python examples/address_lookup.py` | [examples/address_lookup.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/address_lookup.py) |
+| Nonce 缓存（持久 Nonce）示例 | `python examples/nonce_cache.py` | [examples/nonce_cache.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/nonce_cache.py) |
+| SOL 与 WSOL 互转示例 | `python examples/wsol_wrapper.py` | [examples/wsol_wrapper.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/wsol_wrapper.py) |
+| Seed 交易示例 | `python examples/seed_trading.py` | [examples/seed_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/seed_trading.py) |
+| Gas 费策略示例 | `python examples/gas_fee_strategy.py` | [examples/gas_fee_strategy.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/gas_fee_strategy.py) |
+| 热路径交易（零 RPC） | `python examples/hot_path_trading.py` | [examples/hot_path_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/hot_path_trading.py) |
+
+### ⚙️ SWQoS 服务配置说明
+
+配置 SWQoS 服务时，请注意各服务的不同参数要求：
+
+- **Jito**: 第一个参数是 UUID（如果没有 UUID，传空字符串 `""`）
+- **其他 MEV 服务**: 第一个参数是 API Token
+
+#### 自定义 URL 支持
+
+每个 SWQoS 服务都支持可选的自定义 URL 参数：
+
+```python
+# 使用自定义 URL
+jito_config = SwqosConfig(
+    type="Jito",
+    uuid="your_uuid",
+    region=SwqosRegion.FRANKFURT,
+    custom_url="https://custom-jito-endpoint.com"
 )
 
-# 构建买入指令
-instructions = PumpFunInstructionBuilder.build_buy_instructions(
-    payer=payer_pubkey,
-    output_mint=token_mint,
-    input_amount=1_000_000_000,
-    slippage_basis_points=500,  # 5%
-    bonding_curve=bonding_curve_pubkey,
-    creator_vault=creator_vault_pubkey,
-    associated_bonding_curve=abc_pubkey,
+# 使用默认区域端点
+bloxroute_config = SwqosConfig(
+    type="Bloxroute",
+    api_token="your_api_token",
+    region=SwqosRegion.NEW_YORK
 )
 ```
 
-### 热路径执行（零-RPC 交易）
+**URL 优先级逻辑**:
+- 如果提供了自定义 URL，将使用该 URL 而非区域端点
+- 如果未提供自定义 URL，系统将使用指定区域的默认端点
+- 这在保持向后兼容性的同时提供了最大的灵活性
+
+使用多个 MEV 服务时，您需要使用 `Durable Nonce`。您需要使用 `fetch_nonce_info` 函数获取最新的 `nonce` 值，并在交易时将其作为 `durable_nonce` 使用。
+
+---
+
+### 🔧 中间件系统说明
+
+SDK 提供了强大的中间件系统，允许您在交易执行前修改、添加或移除指令。中间件按添加顺序执行：
 
 ```python
-from sol_trade_sdk.hotpath.executor import HotPathExecutor
-from sol_trade_sdk.hotpath.state import HotPathState
+from sol_trade_sdk import MiddlewareManager
 
-# 使用预取数据初始化热路径状态
-state = HotPathState()
-await state.prefetch_blockhash(rpc_client)
-await state.cache_account(token_account_pubkey)
-
-# 在交易期间无需任何 RPC 调用即可执行
-executor = HotPathExecutor(state)
-result = await executor.execute_trade(transaction)
+manager = MiddlewareManager() \
+    .add_middleware(FirstMiddleware()) \
+    .add_middleware(SecondMiddleware()) \
+    .add_middleware(ThirdMiddleware())
 ```
 
-## 安全特性
+### 🔍 地址查找表
+
+地址查找表（ALT）允许您通过以紧凑的表格格式存储常用地址来优化交易大小并降低费用。
 
 ```python
-from sol_trade_sdk.security import SecureKeyStorage, validate_rpc_url, validate_amount
-
-# 带内存加密的安全密钥存储
-storage = SecureKeyStorage.from_keypair(keypair, password="可选密码")
-with storage.unlock() as kp:
-    signature = kp.sign(message)
-
-# 输入验证
-validate_rpc_url("https://api.mainnet-beta.solana.com")
-validate_amount(1_000_000_000, "amount", allow_zero=False)
-```
-
-## 地址查找表
-
-```python
-from sol_trade_sdk.address_lookup import fetch_address_lookup_table_account
+from sol_trade_sdk import fetch_address_lookup_table_account, AddressLookupTableCache
 
 # 从链上获取 ALT
 alt = await fetch_address_lookup_table_account(rpc, alt_address)
 print(f"ALT 包含 {len(alt.addresses)} 个地址")
+
+# 使用缓存提高性能
+cache = AddressLookupTableCache(rpc)
+await cache.prefetch([alt_address1, alt_address2, alt_address3])
+cached = cache.get(alt_address1)
 ```
 
-## 架构
+### 🔍 Nonce 缓存
 
-| 模块 | 描述 |
-|------|------|
-| `cache` | LRU、TTL 和分片缓存 |
-| `calc` | 所有 DEX 的 AMM 计算 |
-| `common` | 核心类型、Gas 策略、联合曲线 |
-| `execution` | 分支优化、预取 |
-| `hotpath` | 零-RPC 热路径执行 |
-| `instruction` | 所有 DEX 的指令构建器 |
-| `middleware` | 指令中间件系统 |
-| `perf` | 性能优化（SIMD、内核绕过等） |
-| `pool` | 连接池和工作池 |
-| `rpc` | 高性能 RPC 客户端 |
-| `security` | 安全密钥存储、验证器 |
-| `seed` | 所有协议的 PDA 派生 |
-| `swqos` | MEV 提供商客户端 |
-| `trading` | 高性能交易执行器 |
-
-## 性能优化
-
-### SIMD 向量化
-```python
-from sol_trade_sdk.perf.simd import vectorized_hash
-hashes = vectorized_hash(data_list)
-```
-
-### 内核绕过（Linux io_uring）
-```python
-from sol_trade_sdk.perf.kernel_bypass import AsyncIOUring
-uring = AsyncIOUring(queue_depth=256)
-```
-
-### 零拷贝 I/O
-```python
-from sol_trade_sdk.perf.zero_copy_io import ZeroCopyBuffer
-buffer = ZeroCopyBuffer.allocate(1024)
-```
-
-## 支持的协议
-
-### PumpFun
-- 带创建者费用支持的联合曲线计算
-- 买卖指令构建
-- 联合曲线和关联账户的 PDA 派生
-
-### PumpSwap
-- 带 LP/协议/创建者费用的池计算
-- 买卖指令构建
-- Mayhem 模式支持
-
-### Bonk
-- 虚拟/真实储备计算
-- 协议费用处理
-
-### Raydium
-- 恒定乘积的 AMM V4 计算
-- CPMM 计算
-- 权限 PDA 派生
-
-### Meteora
-- DAMM V2 交换计算
-- 池 PDA 派生
-
-## 中间件系统
+使用持久 Nonce 实现交易重放保护并优化交易处理。
 
 ```python
-from sol_trade_sdk.middleware import MiddlewareManager, LoggingMiddleware, ValidationMiddleware
+from sol_trade_sdk import fetch_nonce_info, NonceCache
 
-manager = MiddlewareManager()
-manager.add_middleware(ValidationMiddleware(max_instructions=100))
-manager.add_middleware(LoggingMiddleware())
-
-# 将中间件应用于指令
-processed = manager.apply_middlewares_process_protocol_instructions(
-    instructions, "PumpFun", is_buy=True
-)
+# 获取 nonce 信息
+nonce_info = await fetch_nonce_info(rpc, nonce_account)
 ```
 
-## 环境要求
+## 💰 Cashback 支持（PumpFun / PumpSwap）
 
-- Python >= 3.9
-- solders >= 0.18.0
-- solana >= 0.30.0
-- aiohttp >= 3.8.0
+PumpFun 和 PumpSwap 为符合条件的代币支持 **cashback**：部分交易费用可以返还给用户。SDK **必须知道**代币是否启用了 cashback，以便买/卖指令包含正确的账户。
 
-## 许可证
+- **当参数来自 RPC 时**: 如果您使用 `PumpFunParams.from_mint_by_rpc` 或 `PumpSwapParams.from_pool_address_by_rpc`，SDK 会从链上读取 `is_cashback_coin`——无需额外步骤。
+- **当参数来自事件/解析器时**: 如果您从交易事件构建参数（例如 [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)），您**必须**将 cashback 标志传递给 SDK：
+  - **PumpFun**: 从解析的事件构建参数时设置 `is_cashback_coin`。
+  - **PumpSwap**: 手动构建参数时设置 `is_cashback_coin` 字段。
+
+## 🛡️ MEV 保护服务
+
+您可以通过官网申请密钥：[社区网站](https://fnzero.dev/swqos)
+
+- **Jito**: 高性能区块空间
+- **ZeroSlot**: 零延迟交易
+- **Temporal**: 时间敏感交易
+- **Bloxroute**: 区块链网络加速
+- **FlashBlock**: 高速交易执行（API 密钥认证）
+- **BlockRazor**: 高速交易执行（API 密钥认证）
+- **Node1**: 高速交易执行（API 密钥认证）
+- **Astralane**: 区块链网络加速
+
+## 📁 项目结构
+
+```
+src/
+├── common/           # 通用功能和工具
+├── constants/        # 常量定义
+├── instruction/      # 指令构建
+│   └── utils/        # 指令工具
+├── swqos/            # MEV 服务客户端
+├── trading/          # 统一交易引擎
+│   ├── common/       # 交易通用工具
+│   ├── core/         # 核心交易引擎
+│   ├── middleware/   # 中间件系统
+│   └── factory.py    # 交易工厂
+├── utils/            # 工具函数
+│   ├── calc/         # 金额计算工具
+│   └── price/        # 价格计算工具
+└── __init__.py       # 主库文件
+```
+
+## 📄 许可证
 
 MIT License
 
-## 联系方式
+## 💬 联系方式
 
 - 官方网站: https://fnzero.dev/
 - 项目仓库: https://github.com/0xfnzero/sol-trade-sdk-python
 - Telegram 群组: https://t.me/fnzero_group
 - Discord: https://discord.gg/vuazbGkqQE
+
+## ⚠️ 重要注意事项
+
+1. 在主网使用前请充分测试
+2. 正确配置私钥和 API Token
+3. 注意滑点设置以避免交易失败
+4. 监控余额和交易费用
+5. 遵守相关法律法规

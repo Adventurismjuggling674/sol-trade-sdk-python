@@ -1,7 +1,10 @@
-# Sol Trade SDK for Python
+<div align="center">
+    <h1>🚀 Sol Trade SDK for Python</h1>
+    <h3><em>A comprehensive Python SDK for seamless Solana DEX trading</em></h3>
+</div>
 
 <p align="center">
-    <strong>A high-performance Python SDK for low-latency Solana DEX trading</strong>
+    <strong>A high-performance Python SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
 </p>
 
 <p align="center">
@@ -23,11 +26,31 @@
 </p>
 
 <p align="center">
-    <a href="README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README.md">English</a> |
     <a href="https://fnzero.dev/">Website</a> |
     <a href="https://t.me/fnzero_group">Telegram</a> |
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
+
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [📦 Installation](#-installation)
+- [🛠️ Usage Examples](#️-usage-examples)
+  - [📋 Example Usage](#-example-usage)
+  - [⚡ Trading Parameters](#-trading-parameters)
+  - [📊 Usage Examples Summary Table](#-usage-examples-summary-table)
+  - [⚙️ SWQoS Service Configuration](#️-swqos-service-configuration)
+  - [🔧 Middleware System](#-middleware-system)
+  - [🔍 Address Lookup Tables](#-address-lookup-tables)
+  - [🔍 Nonce Cache](#-nonce-cache)
+- [💰 Cashback Support (PumpFun / PumpSwap)](#-cashback-support-pumpfun--pumpswap)
+- [🛡️ MEV Protection Services](#️-mev-protection-services)
+- [📁 Project Structure](#-project-structure)
+- [📄 License](#-license)
+- [💬 Contact](#-contact)
+- [⚠️ Important Notes](#️-important-notes)
 
 ---
 
@@ -42,21 +65,21 @@ This SDK is available in multiple languages:
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support |
 
----
+## ✨ Features
 
-A comprehensive, high-performance Python SDK for Solana DEX trading with support for multiple protocols and MEV providers.
+1. **PumpFun Trading**: Support for `buy` and `sell` operations
+2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
+3. **Bonk Trading**: Support for Bonk trading operations
+4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
+5. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
+6. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
+7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane and other services
+8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
+9. **Unified Trading Interface**: Use unified trading protocol types for trading operations
+10. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
+11. **Shared Infrastructure**: Share expensive RPC and SWQoS clients across multiple wallets for reduced resource usage
 
-## Features
-
-- **Multiple DEX Support**: PumpFun, PumpSwap, Bonk, Raydium AMM V4, Raydium CPMM, Meteora DAMM V2
-- **SWQoS Integration**: Multiple MEV providers for transaction submission
-- **High Performance**: LRU/TTL/Sharded caching, connection pooling, parallel execution
-- **Low Latency**: Optimized for sub-second trade execution
-- **Security First**: Integer overflow protection, secure key storage, input validation
-- **Zero-RPC Hot Path**: All RPC calls happen BEFORE trading execution
-- **Modular Design**: Use only what you need
-
-## Installation
+## 📦 Installation
 
 ### Direct Clone (Recommended)
 
@@ -95,226 +118,271 @@ dependencies = [
 pip install sol-trade-sdk
 ```
 
-## Quick Start
+## 🛠️ Usage Examples
 
-### Basic Trading
+### 📋 Example Usage
 
+#### 1. Create TradingClient Instance
+
+You can refer to [Example: Create TradingClient Instance](examples/trading_client.py).
+
+**Method 1: Simple (single wallet)**
 ```python
 import asyncio
-from sol_trade_sdk import (
-    create_gas_fee_strategy,
-    TradeExecutor,
-    TradeConfig,
-    SwqosType,
-    TradeType,
-)
+from sol_trade_sdk import TradingClient, TradeConfig, SwqosConfig, SwqosRegion
 
 async def main():
-    # Create gas strategy
-    gas_strategy = create_gas_fee_strategy()
-
-    # Create trade executor
-    config = TradeConfig(
-        rpc_url="https://api.mainnet-beta.solana.com",
-        swqos_configs=[{"type": SwqosType.JITO}],
-        gas_fee_strategy=gas_strategy,
-    )
-
-    executor = TradeExecutor(config)
-
-    # Execute trade
-    result = await executor.execute(
-        trade_type=TradeType.BUY,
-        transaction=serialized_tx,
-    )
-    print(f"Transaction signature: {result.signature}")
+    # Wallet
+    payer = Keypair.from_secret_key(/* your keypair */)
+    
+    # RPC URL
+    rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx"
+    
+    # Multiple SWQoS services can be configured
+    swqos_configs = [
+        SwqosConfig(type="Default", rpc_url=rpc_url),
+        SwqosConfig(type="Jito", uuid="your_uuid", region=SwqosRegion.FRANKFURT),
+        SwqosConfig(type="Bloxroute", api_token="your_api_token", region=SwqosRegion.FRANKFURT),
+        SwqosConfig(type="Astralane", api_key="your_api_key", region=SwqosRegion.FRANKFURT),
+    ]
+    
+    # Create TradeConfig instance
+    trade_config = TradeConfig(rpc_url, swqos_configs)
+    
+    # Create TradingClient
+    client = TradingClient(payer, trade_config)
 
 asyncio.run(main())
 ```
 
-### PumpFun Trading
+**Method 2: Shared infrastructure (multiple wallets)**
+
+For multi-wallet scenarios, create the infrastructure once and share it across wallets.
+See [Example: Shared Infrastructure](examples/shared_infrastructure.py).
 
 ```python
-from sol_trade_sdk.instruction.pumpfun import PumpFunInstructionBuilder
-from sol_trade_sdk.calc.pumpfun import getBuyTokenAmountFromSolAmount
+from sol_trade_sdk import TradingInfrastructure, InfrastructureConfig
 
-# Calculate tokens received for SOL input
-tokens = getBuyTokenAmountFromSolAmount(
-    virtual_token_reserves=1_073_000_000_000_000,
-    virtual_sol_reserves=30_000_000_000,
-    real_token_reserves=793_000_000_000_000,
-    has_creator=True,
-    amount=1_000_000_000,  # 1 SOL
+# Create infrastructure once (expensive)
+infra_config = InfrastructureConfig(rpc_url, swqos_configs)
+infrastructure = TradingInfrastructure(infra_config)
+
+# Create multiple clients sharing the same infrastructure (fast)
+client1 = TradingClient.from_infrastructure(payer1, infrastructure)
+client2 = TradingClient.from_infrastructure(payer2, infrastructure)
+```
+
+#### 2. Configure Gas Fee Strategy
+
+```python
+from sol_trade_sdk import GasFeeStrategy
+
+# Create GasFeeStrategy instance
+gas_fee_strategy = GasFeeStrategy()
+# Set global strategy
+gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001)
+```
+
+#### 3. Build Trading Parameters
+
+```python
+from sol_trade_sdk import TradeBuyParams, DexType, TradeTokenType
+
+buy_params = TradeBuyParams(
+    dex_type=DexType.PUMPSWAP,
+    input_token_type=TradeTokenType.WSOL,
+    mint=mint_pubkey,
+    input_token_amount=buy_sol_amount,
+    slippage_basis_points=500,
+    recent_blockhash=recent_blockhash,
+    # Use extension_params for protocol-specific parameters
+    extension_params={"type": "PumpSwap", "params": pumpswap_params},
+    address_lookup_table_account=None,
+    wait_transaction_confirmed=True,
+    create_input_token_ata=True,
+    close_input_token_ata=True,
+    create_mint_ata=True,
+    durable_nonce=None,
+    fixed_output_token_amount=None,
+    gas_fee_strategy=gas_fee_strategy,
+    simulate=False,
+)
+```
+
+#### 4. Execute Trading
+
+```python
+result = await client.buy(buy_params)
+print(f"Transaction signature: {result.signature}")
+```
+
+### ⚡ Trading Parameters
+
+For comprehensive information about all trading parameters including `TradeBuyParams` and `TradeSellParams`, see the Trading Parameters documentation.
+
+#### About ShredStream
+
+When using shred to subscribe to events, due to the nature of shreds, you cannot get complete information about transaction events.
+Please ensure that the parameters your trading logic depends on are available in shreds when using them.
+
+### 📊 Usage Examples Summary Table
+
+| Description | Run Command | Source Code |
+|-------------|-------------|-------------|
+| Create and configure TradingClient instance | `python examples/trading_client.py` | [examples/trading_client.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/trading_client.py) |
+| Share infrastructure across multiple wallets | `python examples/shared_infrastructure.py` | [examples/shared_infrastructure.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/shared_infrastructure.py) |
+| PumpFun token sniping trading | `python examples/pumpfun_sniper_trading.py` | [examples/pumpfun_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_sniper_trading.py) |
+| PumpFun token copy trading | `python examples/pumpfun_copy_trading.py` | [examples/pumpfun_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_copy_trading.py) |
+| PumpSwap trading operations | `python examples/pumpswap_trading.py` | [examples/pumpswap_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_trading.py) |
+| PumpSwap direct trading (via RPC) | `python examples/pumpswap_direct_trading.py` | [examples/pumpswap_direct_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_direct_trading.py) |
+| Raydium CPMM trading operations | `python examples/raydium_cpmm_trading.py` | [examples/raydium_cpmm_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_cpmm_trading.py) |
+| Raydium AMM V4 trading operations | `python examples/raydium_amm_v4_trading.py` | [examples/raydium_amm_v4_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_amm_v4_trading.py) |
+| Meteora DAMM V2 trading operations | `python examples/meteora_damm_v2_trading.py` | [examples/meteora_damm_v2_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/meteora_damm_v2_trading.py) |
+| Bonk token sniping trading | `python examples/bonk_sniper_trading.py` | [examples/bonk_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_sniper_trading.py) |
+| Bonk token copy trading | `python examples/bonk_copy_trading.py` | [examples/bonk_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_copy_trading.py) |
+| Custom instruction middleware example | `python examples/middleware_system.py` | [examples/middleware_system.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/middleware_system.py) |
+| Address lookup table example | `python examples/address_lookup.py` | [examples/address_lookup.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/address_lookup.py) |
+| Nonce cache (durable nonce) example | `python examples/nonce_cache.py` | [examples/nonce_cache.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/nonce_cache.py) |
+| Wrap/unwrap SOL to/from WSOL example | `python examples/wsol_wrapper.py` | [examples/wsol_wrapper.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/wsol_wrapper.py) |
+| Seed trading example | `python examples/seed_trading.py` | [examples/seed_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/seed_trading.py) |
+| Gas fee strategy example | `python examples/gas_fee_strategy.py` | [examples/gas_fee_strategy.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/gas_fee_strategy.py) |
+| Hot path trading (zero-RPC) | `python examples/hot_path_trading.py` | [examples/hot_path_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/hot_path_trading.py) |
+
+### ⚙️ SWQoS Service Configuration
+
+When configuring SWQoS services, note the different parameter requirements for each service:
+
+- **Jito**: The first parameter is UUID (if no UUID, pass an empty string `""`)
+- **Other MEV services**: The first parameter is the API Token
+
+#### Custom URL Support
+
+Each SWQoS service supports an optional custom URL parameter:
+
+```python
+# Using custom URL
+jito_config = SwqosConfig(
+    type="Jito",
+    uuid="your_uuid",
+    region=SwqosRegion.FRANKFURT,
+    custom_url="https://custom-jito-endpoint.com"
 )
 
-# Build buy instructions
-instructions = PumpFunInstructionBuilder.build_buy_instructions(
-    payer=payer_pubkey,
-    output_mint=token_mint,
-    input_amount=1_000_000_000,
-    slippage_basis_points=500,  # 5%
-    bonding_curve=bonding_curve_pubkey,
-    creator_vault=creator_vault_pubkey,
-    associated_bonding_curve=abc_pubkey,
+# Using default regional endpoint
+bloxroute_config = SwqosConfig(
+    type="Bloxroute",
+    api_token="your_api_token",
+    region=SwqosRegion.NEW_YORK
 )
 ```
 
-### Hot Path Execution (Zero-RPC Trading)
+**URL Priority Logic**:
+- If a custom URL is provided, it will be used instead of the regional endpoint
+- If no custom URL is provided, the system will use the default endpoint for the specified region
+- This allows for maximum flexibility while maintaining backward compatibility
+
+When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
+
+---
+
+### 🔧 Middleware System
+
+The SDK provides a powerful middleware system that allows you to modify, add, or remove instructions before transaction execution. Middleware executes in the order they are added:
 
 ```python
-from sol_trade_sdk.hotpath.executor import HotPathExecutor
-from sol_trade_sdk.hotpath.state import HotPathState
+from sol_trade_sdk import MiddlewareManager
 
-# Initialize hot path state with pre-fetched data
-state = HotPathState()
-await state.prefetch_blockhash(rpc_client)
-await state.cache_account(token_account_pubkey)
-
-# Execute without any RPC calls during trading
-executor = HotPathExecutor(state)
-result = await executor.execute_trade(transaction)
+manager = MiddlewareManager() \
+    .add_middleware(FirstMiddleware()) \
+    .add_middleware(SecondMiddleware()) \
+    .add_middleware(ThirdMiddleware())
 ```
 
-## Usage Examples Summary
+### 🔍 Address Lookup Tables
 
-| Description | File | Run Command |
-|-------------|------|-------------|
-| Create and configure TradingClient instance | [trading_client.py](examples/trading_client.py) | `python examples/trading_client.py` |
-| Share infrastructure across multiple wallets | [shared_infrastructure.py](examples/shared_infrastructure.py) | `python examples/shared_infrastructure.py` |
-| PumpFun token sniping trading | [pumpfun_sniper_trading.py](examples/pumpfun_sniper_trading.py) | `python examples/pumpfun_sniper_trading.py` |
-| PumpFun token copy trading | [pumpfun_copy_trading.py](examples/pumpfun_copy_trading.py) | `python examples/pumpfun_copy_trading.py` |
-| PumpSwap trading operations | [pumpswap_trading.py](examples/pumpswap_trading.py) | `python examples/pumpswap_trading.py` |
-| PumpSwap direct trading (via RPC) | [pumpswap_direct_trading.py](examples/pumpswap_direct_trading.py) | `python examples/pumpswap_direct_trading.py` |
-| Raydium CPMM trading operations | [raydium_cpmm_trading.py](examples/raydium_cpmm_trading.py) | `python examples/raydium_cpmm_trading.py` |
-| Raydium AMM V4 trading operations | [raydium_amm_v4_trading.py](examples/raydium_amm_v4_trading.py) | `python examples/raydium_amm_v4_trading.py` |
-| Meteora DAMM V2 trading operations | [meteora_damm_v2_trading.py](examples/meteora_damm_v2_trading.py) | `python examples/meteora_damm_v2_trading.py` |
-| Bonk token sniping trading | [bonk_sniper_trading.py](examples/bonk_sniper_trading.py) | `python examples/bonk_sniper_trading.py` |
-| Bonk token copy trading | [bonk_copy_trading.py](examples/bonk_copy_trading.py) | `python examples/bonk_copy_trading.py` |
-| Custom instruction middleware example | [middleware_system.py](examples/middleware_system.py) | `python examples/middleware_system.py` |
-| Address lookup table example | [address_lookup.py](examples/address_lookup.py) | `python examples/address_lookup.py` |
-| Nonce cache (durable nonce) example | [nonce_cache.py](examples/nonce_cache.py) | `python examples/nonce_cache.py` |
-| Wrap/unwrap SOL to/from WSOL example | [wsol_wrapper.py](examples/wsol_wrapper.py) | `python examples/wsol_wrapper.py` |
-| Seed trading example | [seed_trading.py](examples/seed_trading.py) | `python examples/seed_trading.py` |
-| Gas fee strategy example | [gas_fee_strategy.py](examples/gas_fee_strategy.py) | `python examples/gas_fee_strategy.py` |
-
-## Security Features
+Address Lookup Tables (ALT) allow you to optimize transaction size and reduce fees by storing frequently used addresses in a compact table format.
 
 ```python
-from sol_trade_sdk.security import SecureKeyStorage, validate_rpc_url, validate_amount
-
-# Secure key storage with memory encryption
-storage = SecureKeyStorage.from_keypair(keypair, password="optional_password")
-with storage.unlock() as kp:
-    signature = kp.sign(message)
-
-# Input validation
-validate_rpc_url("https://api.mainnet-beta.solana.com")
-validate_amount(1_000_000_000, "amount", allow_zero=False)
-```
-
-## Address Lookup Tables
-
-```python
-from sol_trade_sdk.address_lookup import fetch_address_lookup_table_account
+from sol_trade_sdk import fetch_address_lookup_table_account, AddressLookupTableCache
 
 # Fetch ALT from chain
 alt = await fetch_address_lookup_table_account(rpc, alt_address)
 print(f"ALT contains {len(alt.addresses)} addresses")
+
+# Use cache for performance
+cache = AddressLookupTableCache(rpc)
+await cache.prefetch([alt_address1, alt_address2, alt_address3])
+cached = cache.get(alt_address1)
 ```
 
-## Architecture
+### 🔍 Durable Nonce
 
-| Module | Description |
-|--------|-------------|
-| `cache` | LRU, TTL, and sharded caches |
-| `calc` | AMM calculations for all DEXes |
-| `common` | Core types, gas strategies, bonding curves |
-| `execution` | Branch optimization, prefetching |
-| `hotpath` | Zero-RPC hot path execution |
-| `instruction` | Instruction builders for all DEXes |
-| `middleware` | Instruction middleware system |
-| `perf` | Performance optimizations (SIMD, kernel bypass, etc.) |
-| `pool` | Connection and worker pools |
-| `rpc` | High-performance RPC clients |
-| `security` | Secure key storage, validators |
-| `seed` | PDA derivation for all protocols |
-| `swqos` | MEV provider clients |
-| `trading` | High-performance trade executor |
-
-## Performance Optimizations
-
-### SIMD Vectorization
-```python
-from sol_trade_sdk.perf.simd import vectorized_hash
-hashes = vectorized_hash(data_list)
-```
-
-### Kernel Bypass (Linux io_uring)
-```python
-from sol_trade_sdk.perf.kernel_bypass import AsyncIOUring
-uring = AsyncIOUring(queue_depth=256)
-```
-
-### Zero-Copy I/O
-```python
-from sol_trade_sdk.perf.zero_copy_io import ZeroCopyBuffer
-buffer = ZeroCopyBuffer.allocate(1024)
-```
-
-## Supported Protocols
-
-### PumpFun
-- Bonding curve calculations with creator fee support
-- Buy/Sell instruction building
-- PDA derivation for bonding curve and associated accounts
-
-### PumpSwap
-- Pool calculations with LP/protocol/creator fees
-- Buy/Sell instruction building
-- Mayhem mode support
-
-### Bonk
-- Virtual/real reserve calculations
-- Protocol fee handling
-
-### Raydium
-- AMM V4 calculations with constant product
-- CPMM calculations
-- Authority PDA derivation
-
-### Meteora
-- DAMM V2 swap calculations
-- Pool PDA derivation
-
-## Middleware System
+Use Durable Nonce to implement transaction replay protection and optimize transaction processing.
 
 ```python
-from sol_trade_sdk.middleware import MiddlewareManager, LoggingMiddleware, ValidationMiddleware
+from sol_trade_sdk import fetch_nonce_info, NonceCache
 
-manager = MiddlewareManager()
-manager.add_middleware(ValidationMiddleware(max_instructions=100))
-manager.add_middleware(LoggingMiddleware())
-
-# Apply middlewares to instructions
-processed = manager.apply_middlewares_process_protocol_instructions(
-    instructions, "PumpFun", is_buy=True
-)
+# Fetch nonce info
+nonce_info = await fetch_nonce_info(rpc, nonce_account)
 ```
 
-## Requirements
+## 💰 Cashback Support (PumpFun / PumpSwap)
 
-- Python >= 3.9
-- solders >= 0.18.0
-- solana >= 0.30.0
-- aiohttp >= 3.8.0
+PumpFun and PumpSwap support **cashback** for eligible tokens: part of the trading fee can be returned to the user. The SDK **must know** whether the token has cashback enabled so that buy/sell instructions include the correct accounts.
 
-## License
+- **When params come from RPC**: If you use `PumpFunParams.from_mint_by_rpc` or `PumpSwapParams.from_pool_address_by_rpc`, the SDK reads `is_cashback_coin` from chain—no extra step.
+- **When params come from event/parser**: If you build params from trade events (e.g. [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)), you **must** pass the cashback flag into the SDK:
+  - **PumpFun**: Set `is_cashback_coin` when building params from parsed events.
+  - **PumpSwap**: Set `is_cashback_coin` field when constructing params manually.
+
+## 🛡️ MEV Protection Services
+
+You can apply for a key through the official website: [Community Website](https://fnzero.dev/swqos)
+
+- **Jito**: High-performance block space
+- **ZeroSlot**: Zero-latency transactions
+- **Temporal**: Time-sensitive transactions
+- **Bloxroute**: Blockchain network acceleration
+- **FlashBlock**: High-speed transaction execution with API key authentication
+- **BlockRazor**: High-speed transaction execution with API key authentication
+- **Node1**: High-speed transaction execution with API key authentication
+- **Astralane**: Blockchain network acceleration
+
+## 📁 Project Structure
+
+```
+src/
+├── common/           # Common functionality and tools
+├── constants/        # Constant definitions
+├── instruction/      # Instruction building
+│   └── utils/        # Instruction utilities
+├── swqos/            # MEV service clients
+├── trading/          # Unified trading engine
+│   ├── common/       # Common trading tools
+│   ├── core/         # Core trading engine
+│   ├── middleware/   # Middleware system
+│   └── factory.py    # Trading factory
+├── utils/            # Utility functions
+│   ├── calc/         # Amount calculation utilities
+│   └── price/        # Price calculation utilities
+└── __init__.py       # Main library file
+```
+
+## 📄 License
 
 MIT License
 
-## Contact
+## 💬 Contact
 
 - Official Website: https://fnzero.dev/
 - Project Repository: https://github.com/0xfnzero/sol-trade-sdk-python
 - Telegram Group: https://t.me/fnzero_group
 - Discord: https://discord.gg/vuazbGkqQE
+
+## ⚠️ Important Notes
+
+1. Test thoroughly before using on mainnet
+2. Properly configure private keys and API tokens
+3. Pay attention to slippage settings to avoid transaction failures
+4. Monitor balances and transaction fees
+5. Comply with relevant laws and regulations
