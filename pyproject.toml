@@ -52,7 +52,7 @@ Documentation = "https://github.com/sol-trade-sdk/sol-trade-sdk-python#readme"
 Repository = "https://github.com/sol-trade-sdk/sol-trade-sdk-python"
 
 [tool.hatch.build.targets.wheel]
-packages = ["sol_trade_sdk"]
+packages = ["."]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
