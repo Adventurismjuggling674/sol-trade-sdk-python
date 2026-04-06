@@ -133,3 +133,134 @@ class BondingCurveAccount:
         
         price_ratio = self.virtual_sol_reserves / self.virtual_token_reserves
         return int(price_ratio * amount)
+
+    def get_token_price(self) -> float:
+        """Calculate the current token price in SOL.
+        100% from Rust: src/common/bonding_curve.rs get_token_price
+        """
+        v_sol = self.virtual_sol_reserves / 100_000_000.0
+        v_tokens = self.virtual_token_reserves / 100_000.0
+        if v_tokens == 0:
+            return 0.0
+        return v_sol / v_tokens
+
+    def get_final_market_cap_sol(self, fee_basis_points: int = 95) -> int:
+        """Calculate the final market cap in SOL after all tokens are sold.
+        100% from Rust: src/common/bonding_curve.rs get_final_market_cap_sol
+        """
+        total_sell_value = self._get_buy_out_price_internal(self.real_token_reserves, fee_basis_points)
+        total_virtual_value = self.virtual_sol_reserves + total_sell_value
+        total_virtual_tokens = self.virtual_token_reserves - self.real_token_reserves
+
+        if total_virtual_tokens == 0:
+            return 0
+
+        return (self.token_total_supply * total_virtual_value) // total_virtual_tokens
+
+    def _get_buy_out_price_internal(self, amount: int, fee_basis_points: int) -> int:
+        """Internal helper for buy out price calculation"""
+        sol_tokens = max(amount, self.real_sol_reserves)
+
+        if self.virtual_token_reserves <= sol_tokens:
+            return 0
+
+        total_sell_value = (sol_tokens * self.virtual_sol_reserves) // (self.virtual_token_reserves - sol_tokens) + 1
+        fee = (total_sell_value * fee_basis_points) // 10000
+
+        return total_sell_value + fee
+
+    def get_creator_vault_pda(self) -> bytes:
+        """Get the creator vault PDA for this bonding curve"""
+        from ..instruction.pumpfun_builder import get_creator_vault_pda
+        return get_creator_vault_pda(self.creator)
+
+
+# ===== Decoding Functions - from Rust: src/instruction/utils/pumpfun.rs =====
+
+BONDING_CURVE_ACCOUNT_SIZE = 8 + 8 + 8 + 8 + 8 + 8 + 1 + 32 + 1 + 1  # 77 bytes after discriminator
+
+
+def decode_bonding_curve_account(data: bytes) -> Optional[BondingCurveAccount]:
+    """
+    Decode a BondingCurveAccount from on-chain account data.
+    Data format (after 8-byte discriminator):
+    - virtual_token_reserves: u64 (8 bytes)
+    - virtual_sol_reserves: u64 (8 bytes)
+    - real_token_reserves: u64 (8 bytes)
+    - real_sol_reserves: u64 (8 bytes)
+    - token_total_supply: u64 (8 bytes)
+    - complete: bool (1 byte)
+    - creator: Pubkey (32 bytes)
+    - is_mayhem_mode: bool (1 byte)
+    - is_cashback_coin: bool (1 byte)
+
+    Args:
+        data: Raw account data (with or without discriminator)
+
+    Returns:
+        BondingCurveAccount if successful, None if data is invalid
+    """
+    import struct
+
+    # Handle data with or without discriminator
+    if len(data) < BONDING_CURVE_ACCOUNT_SIZE:
+        return None
+
+    try:
+        offset = 0
+
+        # Check if data starts with discriminator (8 bytes)
+        if len(data) >= 8 + BONDING_CURVE_ACCOUNT_SIZE:
+            # Skip discriminator
+            offset = 8
+
+        # virtual_token_reserves: u64
+        virtual_token_reserves = struct.unpack_from('<Q', data, offset)[0]
+        offset += 8
+
+        # virtual_sol_reserves: u64
+        virtual_sol_reserves = struct.unpack_from('<Q', data, offset)[0]
+        offset += 8
+
+        # real_token_reserves: u64
+        real_token_reserves = struct.unpack_from('<Q', data, offset)[0]
+        offset += 8
+
+        # real_sol_reserves: u64
+        real_sol_reserves = struct.unpack_from('<Q', data, offset)[0]
+        offset += 8
+
+        # token_total_supply: u64
+        token_total_supply = struct.unpack_from('<Q', data, offset)[0]
+        offset += 8
+
+        # complete: bool
+        complete = data[offset] == 1
+        offset += 1
+
+        # creator: Pubkey (32 bytes)
+        creator = data[offset:offset + 32]
+        offset += 32
+
+        # is_mayhem_mode: bool
+        is_mayhem_mode = data[offset] == 1
+        offset += 1
+
+        # is_cashback_coin: bool
+        is_cashback_coin = data[offset] == 1
+
+        return BondingCurveAccount(
+            discriminator=0,
+            account=b'\x00' * 32,  # Will be set by caller if needed
+            virtual_token_reserves=virtual_token_reserves,
+            virtual_sol_reserves=virtual_sol_reserves,
+            real_token_reserves=real_token_reserves,
+            real_sol_reserves=real_sol_reserves,
+            token_total_supply=token_total_supply,
+            complete=complete,
+            creator=creator,
+            is_mayhem_mode=is_mayhem_mode,
+            is_cashback_coin=is_cashback_coin,
+        )
+    except Exception:
+        return None

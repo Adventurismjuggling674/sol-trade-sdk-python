@@ -8,7 +8,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 
 # Program ID
-METEORA DAMM_V2_PROGRAM = bytes.fromhex("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2")
+METEORA_DAMM_V2_PROGRAM = bytes.fromhex("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2")
 
 # Discriminators
 SWAP_DISCRIMINATOR = bytes([248, 198, 158, 145, 225, 117, 135, 200])
@@ -71,7 +71,7 @@ class MeteoraDammV2InstructionBuilder:
             AccountMeta(bytes(32), False, False),  # system program (placeholder)
         ]
 
-        return [Instruction(METEORA DAMM_V2_PROGRAM, accounts, data)]
+        return [Instruction(METEORA_DAMM_V2_PROGRAM, accounts, data)]
 
     @staticmethod
     def build_buy_instructions(

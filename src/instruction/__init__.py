@@ -486,7 +486,7 @@ class PumpFunInstructionBuilder(InstructionBuilder):
 
 
 class PumpSwapInstructionBuilder(InstructionBuilder):
-    """Instruction builder for PumpSwap protocol"""
+    """Instruction builder for PumpSwap protocol - Production-grade implementation"""
 
     async def build_buy_instructions(
         self,
@@ -499,9 +499,39 @@ class PumpSwapInstructionBuilder(InstructionBuilder):
         create_output_ata: bool = True,
         close_input_ata: bool = False,
     ) -> List[Instruction]:
-        """Build buy instructions for PumpSwap"""
-        # Simplified implementation
-        return []
+        """Build buy instructions for PumpSwap - 100% port from Rust"""
+        from .pumpswap_builder import (
+            build_buy_instructions,
+            BuildBuyParams,
+            PumpSwapParams as BuilderParams,
+        )
+        
+        # Convert to builder params
+        builder_params = BuildBuyParams(
+            payer=payer,
+            input_amount=input_amount,
+            slippage_basis_points=slippage_basis_points,
+            protocol_params=BuilderParams(
+                pool=protocol_params.pool,
+                base_mint=input_mint,
+                quote_mint=output_mint,
+                pool_base_token_account=protocol_params.pool_base_token_account,
+                pool_quote_token_account=protocol_params.pool_quote_token_account,
+                pool_base_token_reserves=protocol_params.pool_base_token_reserves,
+                pool_quote_token_reserves=protocol_params.pool_quote_token_reserves,
+                coin_creator_vault_ata=protocol_params.coin_creator_vault_ata,
+                coin_creator_vault_authority=protocol_params.coin_creator_vault_authority,
+                base_token_program=protocol_params.base_token_program,
+                quote_token_program=protocol_params.quote_token_program,
+                is_mayhem_mode=protocol_params.is_mayhem_mode,
+                is_cashback_coin=protocol_params.is_cashback_coin,
+            ),
+            create_output_mint_ata=create_output_ata,
+            close_input_mint_ata=close_input_ata,
+            use_exact_quote_amount=True,
+        )
+        
+        return build_buy_instructions(builder_params)
 
     async def build_sell_instructions(
         self,
@@ -514,8 +544,38 @@ class PumpSwapInstructionBuilder(InstructionBuilder):
         create_output_ata: bool = False,
         close_input_ata: bool = False,
     ) -> List[Instruction]:
-        """Build sell instructions for PumpSwap"""
-        return []
+        """Build sell instructions for PumpSwap - 100% port from Rust"""
+        from .pumpswap_builder import (
+            build_sell_instructions,
+            BuildSellParams,
+            PumpSwapParams as BuilderParams,
+        )
+        
+        # Convert to builder params
+        builder_params = BuildSellParams(
+            payer=payer,
+            input_amount=input_amount,
+            slippage_basis_points=slippage_basis_points,
+            protocol_params=BuilderParams(
+                pool=protocol_params.pool,
+                base_mint=input_mint,
+                quote_mint=output_mint,
+                pool_base_token_account=protocol_params.pool_base_token_account,
+                pool_quote_token_account=protocol_params.pool_quote_token_account,
+                pool_base_token_reserves=protocol_params.pool_base_token_reserves,
+                pool_quote_token_reserves=protocol_params.pool_quote_token_reserves,
+                coin_creator_vault_ata=protocol_params.coin_creator_vault_ata,
+                coin_creator_vault_authority=protocol_params.coin_creator_vault_authority,
+                base_token_program=protocol_params.base_token_program,
+                quote_token_program=protocol_params.quote_token_program,
+                is_mayhem_mode=protocol_params.is_mayhem_mode,
+                is_cashback_coin=protocol_params.is_cashback_coin,
+            ),
+            create_output_mint_ata=create_output_ata,
+            close_input_mint_ata=close_input_ata,
+        )
+        
+        return build_sell_instructions(builder_params)
 
 
 class BonkInstructionBuilder(InstructionBuilder):

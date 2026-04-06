@@ -241,13 +241,22 @@ def calculate_with_slippage_buy(amount: int, slippage_basis_points: int) -> int:
 
     Raises:
         CalculationError: If inputs are invalid or calculation overflows
+
+    Note:
+        100% from Rust: src/utils/calc/common.rs calculate_with_slippage_buy
+        Slippage is clamped to MAX_SLIPPAGE_BASIS_POINTS (9999 = 99.99%)
+        to prevent the amount from doubling when slippage = 10000.
     """
     _validate_amount(amount, "amount")
     _validate_slippage(slippage_basis_points)
 
+    # Clamp basis points to max 9999 (99.99%) to prevent amount doubling at 100%
+    MAX_SLIPPAGE_BASIS_POINTS = 9999
+    bps = slippage_basis_points if slippage_basis_points <= MAX_SLIPPAGE_BASIS_POINTS else MAX_SLIPPAGE_BASIS_POINTS
+
     # Check for overflow
-    _check_overflow(amount, slippage_basis_points, "multiply")
-    slippage_amount = (amount * slippage_basis_points) // 10_000
+    _check_overflow(amount, bps, "multiply")
+    slippage_amount = (amount * bps) // 10_000
 
     _check_overflow(amount, slippage_amount, "add")
     return amount + slippage_amount
@@ -265,17 +274,22 @@ def calculate_with_slippage_sell(amount: int, slippage_basis_points: int) -> int
         Amount with slippage subtracted
 
     Raises:
-        CalculationError: If inputs are invalid or calculation underflows
+        CalculationError: If inputs are invalid
+
+    Note:
+        100% from Rust: src/utils/calc/common.rs calculate_with_slippage_sell
+        Returns 1 if amount <= slippage_basis_points / 10000 to ensure minimum output.
     """
     _validate_amount(amount, "amount")
     _validate_slippage(slippage_basis_points)
 
+    # Rust: if amount <= basis_points / 10000 { 1 } else { ... }
+    if amount <= slippage_basis_points // 10_000:
+        return 1
+
     # Check for overflow in multiplication
     _check_overflow(amount, slippage_basis_points, "multiply")
     slippage_amount = (amount * slippage_basis_points) // 10_000
-
-    if slippage_amount > amount:
-        raise CalculationError(f"Slippage {slippage_basis_points} bp would result in negative amount")
 
     return amount - slippage_amount
 

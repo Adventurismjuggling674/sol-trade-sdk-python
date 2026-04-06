@@ -87,6 +87,38 @@ from .subscription_handle import (
     LogSubscription,
 )
 
+from .wsol_manager import (
+    TOKEN_PROGRAM,
+    ASSOCIATED_TOKEN_PROGRAM,
+    WSOL_TOKEN_ACCOUNT,
+    SYSTEM_PROGRAM,
+    RENT,
+    get_associated_token_address_fast,
+    get_associated_token_address_use_seed,
+    create_associated_token_account_idempotent_instruction,
+    close_account_instruction,
+    transfer_instruction,
+    sync_native_instruction,
+    handle_wsol,
+    close_wsol,
+    create_wsol_ata,
+    wrap_sol_only,
+    wrap_wsol_to_sol,
+    wrap_wsol_to_sol_without_create,
+)
+
+from .trading_utils import (
+    get_multi_token_balances,
+    get_token_balance,
+    get_token_balance_with_options,
+    get_sol_balance,
+    transfer_sol,
+    close_token_account,
+    get_token_balance_sync,
+    get_sol_balance_sync,
+    get_multi_token_balances_sync,
+)
+
 __all__ = [
     # Types
     "GasFeeStrategy",
@@ -161,4 +193,32 @@ __all__ = [
     "VoteSubscription",
     "BlockSubscription",
     "LogSubscription",
+    # WSOL Manager
+    "TOKEN_PROGRAM",
+    "ASSOCIATED_TOKEN_PROGRAM",
+    "WSOL_TOKEN_ACCOUNT",
+    "SYSTEM_PROGRAM",
+    "RENT",
+    "get_associated_token_address_fast",
+    "get_associated_token_address_use_seed",
+    "create_associated_token_account_idempotent_instruction",
+    "close_account_instruction",
+    "transfer_instruction",
+    "sync_native_instruction",
+    "handle_wsol",
+    "close_wsol",
+    "create_wsol_ata",
+    "wrap_sol_only",
+    "wrap_wsol_to_sol",
+    "wrap_wsol_to_sol_without_create",
+    # Trading Utils
+    "get_multi_token_balances",
+    "get_token_balance",
+    "get_token_balance_with_options",
+    "get_sol_balance",
+    "transfer_sol",
+    "close_token_account",
+    "get_token_balance_sync",
+    "get_sol_balance_sync",
+    "get_multi_token_balances_sync",
 ]

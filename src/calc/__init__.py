@@ -10,32 +10,55 @@ from dataclasses import dataclass
 
 # ===== Constants =====
 
-# PumpFun constants
-PUMPFUN_FEE_BASIS_POINTS = 100  # 1%
-PUMPFUN_CREATOR_FEE = 50  # 0.5%
+# PumpFun constants - 100% from Rust: src/instruction/utils/pumpfun.rs global_constants
+PUMPFUN_FEE_BASIS_POINTS = 95   # Protocol fee
+PUMPFUN_CREATOR_FEE = 30       # Creator fee
 
-# PumpSwap constants
-PUMPSWAP_LP_FEE_BASIS_POINTS = 25  # 0.25%
-PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS = 5  # 0.05%
-PUMPSWAP_TOTAL_FEE_BASIS_POINTS = 30  # 0.30%
-PUMPSWAP_CURVE_FEE_BASIS_POINTS = 100  # 1%
+# PumpSwap constants - 100% from Rust: src/instruction/utils/pumpswap.rs accounts
+PUMPSWAP_LP_FEE_BASIS_POINTS = 25          # 0.25%
+PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS = 5     # 0.05%
+PUMPSWAP_COIN_CREATOR_FEE_BASIS_POINTS = 5 # 0.05%
 
-# Bonk constants
+# Bonk constants - 100% from Rust: src/instruction/utils/bonk.rs accounts
+BONK_PROTOCOL_FEE_RATE = 25   # 0.25%
+BONK_PLATFORM_FEE_RATE = 100  # 1%
+BONK_SHARE_FEE_RATE = 0       # 0%
+# Legacy aliases (deprecated)
 BONK_FEE_NUMERATOR = 25
 BONK_FEE_DENOMINATOR = 10000
 
-# Raydium constants
+# Raydium AMM V4 constants - 100% from Rust: src/instruction/utils/raydium_amm_v4.rs accounts
 RAYDIUM_AMM_V4_FEE_NUMERATOR = 25
 RAYDIUM_AMM_V4_FEE_DENOMINATOR = 10000  # 0.25%
-RAYDIUM_CPMM_FEE_NUMERATOR = 30
-RAYDIUM_CPMM_FEE_DENOMINATOR = 10000  # 0.30%
+
+# Raydium CPMM constants - 100% from Rust: src/instruction/utils/raydium_cpmm.rs accounts
+RAYDIUM_CPMM_FEE_RATE_DENOMINATOR = 1_000_000
+RAYDIUM_CPMM_TRADE_FEE_RATE = 2500
+RAYDIUM_CPMM_CREATOR_FEE_RATE = 0
+RAYDIUM_CPMM_PROTOCOL_FEE_RATE = 120000
+RAYDIUM_CPMM_FUND_FEE_RATE = 40000
+
+# Maximum slippage in basis points (99.99% = 9999 bps)
+# This prevents the wrap amount from doubling when slippage is 100%
+MAX_SLIPPAGE_BASIS_POINTS = 9999
 
 
 # ===== Utility Functions =====
 
-def compute_fee(amount: int, fee_numerator: int, fee_denominator: int) -> int:
-    """Calculate fee amount from basis points"""
-    return (amount * fee_numerator) // fee_denominator
+def compute_fee(amount: int, fee_basis_points: int) -> int:
+    """
+    Calculate fee amount from basis points using ceiling division.
+    
+    100% from Rust: src/utils/calc/common.rs compute_fee
+    
+    Args:
+        amount: The amount to calculate fee for
+        fee_basis_points: Fee in basis points (1 bp = 0.01%)
+    
+    Returns:
+        Fee amount using ceiling division
+    """
+    return ceil_div(amount * fee_basis_points, 10_000)
 
 
 def ceil_div(a: int, b: int) -> int:
@@ -46,17 +69,31 @@ def ceil_div(a: int, b: int) -> int:
 def calculate_with_slippage_buy(amount: int, slippage_bps: int) -> int:
     """
     Calculate maximum acceptable output for a buy with slippage.
-    Returns amount * (10000 + slippage_bps) / 10000
+    Returns amount + (amount * slippage_bps / 10000)
+    
+    100% from Rust: src/utils/calc/common.rs calculate_with_slippage_buy
+    
+    Note: Basis points are clamped to MAX_SLIPPAGE_BASIS_POINTS (9999 = 99.99%)
+    to prevent the amount from doubling when slippage_bps = 10000.
     """
-    return (amount * (10000 + slippage_bps)) // 10000
+    # Clamp basis points to max 9999 (99.99%) to prevent amount doubling at 100%
+    bps = slippage_bps if slippage_bps <= MAX_SLIPPAGE_BASIS_POINTS else MAX_SLIPPAGE_BASIS_POINTS
+    return amount + (amount * bps) // 10000
 
 
 def calculate_with_slippage_sell(amount: int, slippage_bps: int) -> int:
     """
     Calculate minimum acceptable output for a sell with slippage.
-    Returns amount * (10000 - slippage_bps) / 10000
+    Returns amount - (amount * slippage_bps / 10000)
+    
+    100% from Rust: src/utils/calc/common.rs calculate_with_slippage_sell
+    
+    Note: Returns 1 if amount <= slippage_bps / 10000 to ensure minimum output.
     """
-    return (amount * (10000 - slippage_bps)) // 10000
+    # Rust: if amount <= basis_points / 10000 { 1 } else { ... }
+    if amount <= slippage_bps // 10000:
+        return 1
+    return amount - (amount * slippage_bps) // 10000
 
 
 # ===== PumpFun Calculations =====
@@ -66,349 +103,299 @@ def get_buy_token_amount_from_sol_amount(
     virtual_sol_reserves: int,
     virtual_token_reserves: int,
     real_token_reserves: int,
+    has_creator: bool = False,
 ) -> int:
     """
     Calculate the amount of tokens received for a given SOL amount on PumpFun.
     
-    Uses constant product formula:
-    k = virtual_sol * virtual_tokens
-    new_virtual_sol = virtual_sol + sol_in
-    new_virtual_tokens = k / new_virtual_sol
-    tokens_out = virtual_tokens - new_virtual_tokens
+    100% from Rust: src/utils/calc/pumpfun.rs get_buy_token_amount_from_sol_amount
+    
+    Args:
+        sol_amount: SOL amount in lamports
+        virtual_sol_reserves: Virtual SOL reserves
+        virtual_token_reserves: Virtual token reserves
+        real_token_reserves: Real token reserves
+        has_creator: Whether there is a creator (affects fee)
     """
-    if sol_amount == 0 or virtual_sol_reserves == 0 or virtual_token_reserves == 0:
+    if sol_amount == 0 or virtual_token_reserves == 0:
         return 0
 
-    # k = virtual_sol * virtual_tokens
-    k = virtual_sol_reserves * virtual_token_reserves
+    # Calculate total fee basis points
+    total_fee_basis_points = PUMPFUN_FEE_BASIS_POINTS
+    if has_creator:
+        total_fee_basis_points += PUMPFUN_CREATOR_FEE
+
+    # Rust: input_amount = amount * 10000 / (total_fee + 10000)
+    input_amount = (sol_amount * 10000) // (total_fee_basis_points + 10000)
     
-    # new_virtual_sol = virtual_sol + sol_in
-    new_virtual_sol = virtual_sol_reserves + sol_amount
+    # Rust: denominator = virtual_sol_reserves + input_amount
+    denominator = virtual_sol_reserves + input_amount
     
-    # new_virtual_tokens = k / new_virtual_sol
-    new_virtual_tokens = k // new_virtual_sol
-    
-    # tokens_out = virtual_tokens - new_virtual_tokens
-    tokens_out = virtual_token_reserves - new_virtual_tokens
-    
-    # Apply fee deduction (1%)
-    fee = (tokens_out * PUMPFUN_FEE_BASIS_POINTS) // 10000
-    tokens_out_after_fee = tokens_out - fee
-    
+    # Rust: tokens_received = input_amount * virtual_token_reserves / denominator
+    tokens_received = (input_amount * virtual_token_reserves) // denominator
+
     # Cap at real token reserves
-    if tokens_out_after_fee > real_token_reserves:
-        return real_token_reserves
-    
-    return tokens_out_after_fee
+    tokens_received = min(tokens_received, real_token_reserves)
+
+    # Special handling for small amounts (matching Rust exactly)
+    LAMPORTS_PER_SOL = 1_000_000_000
+    if tokens_received <= 100 * 1_000_000:
+        if sol_amount > LAMPORTS_PER_SOL // 100:  # > 0.01 SOL
+            tokens_received = 25547619 * 1_000_000
+        else:
+            tokens_received = 255476 * 1_000_000
+
+    return tokens_received
 
 
 def get_sell_sol_amount_from_token_amount(
     token_amount: int,
     virtual_sol_reserves: int,
     virtual_token_reserves: int,
-    real_sol_reserves: int,
+    has_creator: bool = False,
 ) -> int:
     """
     Calculate the amount of SOL received for selling tokens on PumpFun.
     
-    Uses constant product formula:
-    k = virtual_sol * virtual_tokens
-    new_virtual_tokens = virtual_tokens + tokens_in
-    new_virtual_sol = k / new_virtual_tokens
-    sol_out = virtual_sol - new_virtual_sol
+    100% from Rust: src/utils/calc/pumpfun.rs get_sell_sol_amount_from_token_amount
+    
+    Args:
+        token_amount: Token amount to sell
+        virtual_sol_reserves: Virtual SOL reserves
+        virtual_token_reserves: Virtual token reserves
+        has_creator: Whether there is a creator (affects fee)
     """
-    if token_amount == 0 or virtual_sol_reserves == 0 or virtual_token_reserves == 0:
+    if token_amount == 0 or virtual_token_reserves == 0:
         return 0
 
-    # k = virtual_sol * virtual_tokens
-    k = virtual_sol_reserves * virtual_token_reserves
+    # Rust: numerator = amount * virtual_sol_reserves
+    numerator = token_amount * virtual_sol_reserves
     
-    # new_virtual_tokens = virtual_tokens + tokens_in
-    new_virtual_tokens = virtual_token_reserves + token_amount
+    # Rust: denominator = virtual_token_reserves + amount
+    denominator = virtual_token_reserves + token_amount
     
-    # new_virtual_sol = k / new_virtual_tokens
-    new_virtual_sol = k // new_virtual_tokens
-    
-    # sol_out = virtual_sol - new_virtual_sol
-    sol_out = virtual_sol_reserves - new_virtual_sol
-    
-    # Apply fee deduction (1%)
-    fee = (sol_out * PUMPFUN_FEE_BASIS_POINTS) // 10000
-    sol_out_after_fee = sol_out - fee
-    
-    # Cap at real sol reserves
-    if sol_out_after_fee > real_sol_reserves:
-        return real_sol_reserves
-    
-    return sol_out_after_fee
+    # Rust: sol_cost = numerator / denominator
+    sol_cost = numerator // denominator
+
+    # Calculate total fee basis points
+    total_fee_basis_points = PUMPFUN_FEE_BASIS_POINTS
+    if has_creator:
+        total_fee_basis_points += PUMPFUN_CREATOR_FEE
+
+    # Rust: fee = compute_fee(sol_cost, total_fee_basis_points)
+    fee = compute_fee(sol_cost, total_fee_basis_points)
+
+    # Rust: sol_cost.saturating_sub(fee)
+    return max(0, sol_cost - fee)
 
 
 # ===== PumpSwap Result Types =====
+# 100% from Rust: src/utils/calc/pumpswap.rs
 
 @dataclass
 class BuyBaseInputResult:
-    """Result of buy base input calculation"""
-    amount_out: int
-    fee: int
-    lp_fee: int
-    protocol_fee: int
-    curve_fee: int
-    amount_in_after_curve_fee: int
-    minimum_amount_out: int
+    """Result of buy base input calculation - from Rust pumpswap.rs"""
+    internal_quote_amount: int
+    ui_quote: int
+    max_quote: int
 
 
 @dataclass
 class BuyQuoteInputResult:
-    """Result of buy quote input calculation"""
-    amount_in: int
-    fee: int
-    lp_fee: int
-    protocol_fee: int
-    curve_fee: int
-    amount_in_after_curve_fee: int
+    """Result of buy quote input calculation - from Rust pumpswap.rs"""
+    base: int
+    internal_quote_without_fees: int
+    max_quote: int
 
 
 @dataclass
 class SellBaseInputResult:
-    """Result of sell base input calculation"""
-    amount_out: int
-    fee: int
-    lp_fee: int
-    protocol_fee: int
-    curve_fee: int
-    minimum_amount_out: int
+    """Result of sell base input calculation - from Rust pumpswap.rs"""
+    ui_quote: int
+    min_quote: int
+    internal_quote_amount_out: int
 
 
 @dataclass
 class SellQuoteInputResult:
-    """Result of sell quote input calculation"""
-    amount_in: int
-    fee: int
-    lp_fee: int
-    protocol_fee: int
-    curve_fee: int
+    """Result of sell quote input calculation - from Rust pumpswap.rs"""
+    internal_raw_quote: int
+    base: int
+    min_quote: int
 
 
 # ===== PumpSwap Calculations =====
+# 100% from Rust: src/utils/calc/pumpswap.rs
 
 def buy_base_input_internal(
-    amount_in: int,
-    reserve_in: int,
-    reserve_out: int,
-    slippage_bps: int = 500,
+    base: int,
+    slippage_basis_points: int,
+    base_reserve: int,
+    quote_reserve: int,
+    has_coin_creator: bool = False,
 ) -> BuyBaseInputResult:
     """
-    Calculate buy output when inputting base token (SOL).
+    Calculate quote needed to buy base tokens on PumpSwap.
     
-    Args:
-        amount_in: Amount of SOL to spend
-        reserve_in: SOL reserves in the pool
-        reserve_out: Token reserves in the pool
-        slippage_bps: Slippage tolerance in basis points
-    
-    Returns:
-        BuyBaseInputResult with output amount and fee breakdown
+    100% from Rust: src/utils/calc/pumpswap.rs buy_base_input_internal
     """
-    if amount_in == 0 or reserve_in == 0 or reserve_out == 0:
-        return BuyBaseInputResult(0, 0, 0, 0, 0, 0, 0)
+    if base_reserve == 0 or quote_reserve == 0:
+        return BuyBaseInputResult(0, 0, 0)
+    if base > base_reserve:
+        return BuyBaseInputResult(0, 0, 0)
 
-    # Calculate curve fee (1%)
-    curve_fee = (amount_in * PUMPSWAP_CURVE_FEE_BASIS_POINTS) // 10000
-    amount_in_after_curve_fee = amount_in - curve_fee
-
-    # Calculate total fee on the remaining amount
-    total_fee = (amount_in_after_curve_fee * PUMPSWAP_TOTAL_FEE_BASIS_POINTS) // 10000
+    # Rust: quote_amount_in = ceil_div(quote_reserve * base, base_reserve - base)
+    numerator = quote_reserve * base
+    denominator = base_reserve - base
+    if denominator == 0:
+        return BuyBaseInputResult(0, 0, 0)
     
-    # Split fees
-    lp_fee = (amount_in_after_curve_fee * PUMPSWAP_LP_FEE_BASIS_POINTS) // 10000
-    protocol_fee = (amount_in_after_curve_fee * PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS) // 10000
+    quote_amount_in = ceil_div(numerator, denominator)
 
-    # Apply fee to amount
-    amount_in_with_fee = amount_in_after_curve_fee - total_fee
+    # Calculate fees (Rust: compute_fee with LP_FEE, PROTOCOL_FEE, COIN_CREATOR_FEE)
+    lp_fee = compute_fee(quote_amount_in, PUMPSWAP_LP_FEE_BASIS_POINTS)
+    protocol_fee = compute_fee(quote_amount_in, PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS)
+    coin_creator_fee = 0
+    if has_coin_creator:
+        coin_creator_fee = compute_fee(quote_amount_in, PUMPSWAP_COIN_CREATOR_FEE_BASIS_POINTS)
 
-    # Calculate output using constant product: (r_in + a_in) * (r_out - a_out) = r_in * r_out
-    # a_out = r_out - (r_in * r_out) / (r_in + a_in)
-    numerator = amount_in_with_fee * reserve_out
-    denominator = reserve_in + amount_in_with_fee
-    amount_out = numerator // denominator
-
-    # Calculate minimum amount out with slippage
-    minimum_amount_out = (amount_out * (10000 - slippage_bps)) // 10000
+    total_quote = quote_amount_in + lp_fee + protocol_fee + coin_creator_fee
+    max_quote = calculate_with_slippage_buy(total_quote, slippage_basis_points)
 
     return BuyBaseInputResult(
-        amount_out=amount_out,
-        fee=total_fee,
-        lp_fee=lp_fee,
-        protocol_fee=protocol_fee,
-        curve_fee=curve_fee,
-        amount_in_after_curve_fee=amount_in_after_curve_fee,
-        minimum_amount_out=minimum_amount_out,
+        internal_quote_amount=quote_amount_in,
+        ui_quote=total_quote,
+        max_quote=max_quote,
     )
 
 
 def buy_quote_input_internal(
-    amount_out: int,
-    reserve_in: int,
-    reserve_out: int,
+    quote: int,
+    slippage_basis_points: int,
+    base_reserve: int,
+    quote_reserve: int,
+    has_coin_creator: bool = False,
 ) -> BuyQuoteInputResult:
     """
-    Calculate buy input when specifying desired output tokens.
+    Calculate base tokens received for quote input on PumpSwap.
     
-    Args:
-        amount_out: Amount of tokens desired
-        reserve_in: SOL reserves in the pool
-        reserve_out: Token reserves in the pool
-    
-    Returns:
-        BuyQuoteInputResult with required input amount and fee breakdown
+    100% from Rust: src/utils/calc/pumpswap.rs buy_quote_input_internal
     """
-    if amount_out == 0 or reserve_in == 0 or reserve_out == 0:
-        return BuyQuoteInputResult(0, 0, 0, 0, 0, 0)
+    if base_reserve == 0 or quote_reserve == 0:
+        return BuyQuoteInputResult(0, 0, 0)
 
-    # Calculate required input before fees
-    # amount_in = (r_in * a_out) / (r_out - a_out)
-    numerator = reserve_in * amount_out
-    denominator = reserve_out - amount_out
-    if denominator <= 0:
-        return BuyQuoteInputResult(0, 0, 0, 0, 0, 0)
-    
-    amount_in_before_fees = ceil_div(numerator, denominator)
+    # Calculate total fee basis points
+    total_fee_bps = PUMPSWAP_LP_FEE_BASIS_POINTS + PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS
+    if has_coin_creator:
+        total_fee_bps += PUMPSWAP_COIN_CREATOR_FEE_BASIS_POINTS
+    denominator = 10000 + total_fee_bps
 
-    # Add total fees (0.30%)
-    # amount_in = amount_in_before_fees / (1 - 0.003)
-    amount_in_after_curve_fee = ceil_div(
-        amount_in_before_fees * 10000,
-        10000 - PUMPSWAP_TOTAL_FEE_BASIS_POINTS
-    )
+    # Rust: effective_quote = quote * 10000 / denominator
+    effective_quote = (quote * 10000) // denominator
 
-    # Add curve fee (1%)
-    # amount_in = amount_in_after_curve_fee / (1 - 0.01)
-    amount_in = ceil_div(
-        amount_in_after_curve_fee * 10000,
-        10000 - PUMPSWAP_CURVE_FEE_BASIS_POINTS
-    )
+    # Rust: base_amount_out = base_reserve * effective_quote / (quote_reserve + effective_quote)
+    numerator = base_reserve * effective_quote
+    denominator_effective = quote_reserve + effective_quote
+    if denominator_effective == 0:
+        return BuyQuoteInputResult(0, effective_quote, 0)
 
-    # Calculate fees
-    curve_fee = amount_in - amount_in_after_curve_fee
-    total_fee = amount_in_after_curve_fee - amount_in_before_fees
-    lp_fee = (amount_in_after_curve_fee * PUMPSWAP_LP_FEE_BASIS_POINTS) // 10000
-    protocol_fee = (amount_in_after_curve_fee * PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS) // 10000
+    base_amount_out = numerator // denominator_effective
+    max_quote = calculate_with_slippage_buy(quote, slippage_basis_points)
 
     return BuyQuoteInputResult(
-        amount_in=amount_in,
-        fee=total_fee,
-        lp_fee=lp_fee,
-        protocol_fee=protocol_fee,
-        curve_fee=curve_fee,
-        amount_in_after_curve_fee=amount_in_after_curve_fee,
+        base=base_amount_out,
+        internal_quote_without_fees=effective_quote,
+        max_quote=max_quote,
     )
 
 
 def sell_base_input_internal(
-    amount_in: int,
-    reserve_in: int,
-    reserve_out: int,
-    slippage_bps: int = 500,
+    base: int,
+    slippage_basis_points: int,
+    base_reserve: int,
+    quote_reserve: int,
+    has_coin_creator: bool = False,
 ) -> SellBaseInputResult:
     """
-    Calculate sell output when inputting tokens.
+    Calculate quote received for selling base tokens on PumpSwap.
     
-    Args:
-        amount_in: Amount of tokens to sell
-        reserve_in: Token reserves in the pool
-        reserve_out: SOL reserves in the pool
-        slippage_bps: Slippage tolerance in basis points
-    
-    Returns:
-        SellBaseInputResult with output amount and fee breakdown
+    100% from Rust: src/utils/calc/pumpswap.rs sell_base_input_internal
     """
-    if amount_in == 0 or reserve_in == 0 or reserve_out == 0:
-        return SellBaseInputResult(0, 0, 0, 0, 0, 0)
+    if base_reserve == 0 or quote_reserve == 0:
+        return SellBaseInputResult(0, 0, 0)
 
-    # Calculate curve fee (1%)
-    curve_fee = (amount_in * PUMPSWAP_CURVE_FEE_BASIS_POINTS) // 10000
-    amount_in_after_curve_fee = amount_in - curve_fee
-
-    # Calculate total fee on the remaining amount
-    total_fee = (amount_in_after_curve_fee * PUMPSWAP_TOTAL_FEE_BASIS_POINTS) // 10000
+    # Rust: quote_amount_out = (quote_reserve * base) / (base_reserve + base)
+    numerator = quote_reserve * base
+    denominator = base_reserve + base
+    if denominator == 0:
+        return SellBaseInputResult(0, 0, 0)
     
-    # Split fees
-    lp_fee = (amount_in_after_curve_fee * PUMPSWAP_LP_FEE_BASIS_POINTS) // 10000
-    protocol_fee = (amount_in_after_curve_fee * PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS) // 10000
-
-    # Apply fee to amount
-    amount_in_with_fee = amount_in_after_curve_fee - total_fee
-
-    # Calculate output using constant product
-    numerator = amount_in_with_fee * reserve_out
-    denominator = reserve_in + amount_in_with_fee
-    amount_out = numerator // denominator
-
-    # Calculate minimum amount out with slippage
-    minimum_amount_out = (amount_out * (10000 - slippage_bps)) // 10000
-
-    return SellBaseInputResult(
-        amount_out=amount_out,
-        fee=total_fee,
-        lp_fee=lp_fee,
-        protocol_fee=protocol_fee,
-        curve_fee=curve_fee,
-        minimum_amount_out=minimum_amount_out,
-    )
-
-
-def sell_quote_input_internal(
-    amount_out: int,
-    reserve_in: int,
-    reserve_out: int,
-) -> SellQuoteInputResult:
-    """
-    Calculate sell input when specifying desired SOL output.
-    
-    Args:
-        amount_out: Amount of SOL desired
-        reserve_in: Token reserves in the pool
-        reserve_out: SOL reserves in the pool
-    
-    Returns:
-        SellQuoteInputResult with required input amount and fee breakdown
-    """
-    if amount_out == 0 or reserve_in == 0 or reserve_out == 0:
-        return SellQuoteInputResult(0, 0, 0, 0, 0, 0)
-
-    # Calculate required input before fees
-    # amount_in = (r_in * a_out) / (r_out - a_out)
-    numerator = reserve_in * amount_out
-    denominator = reserve_out - amount_out
-    if denominator <= 0:
-        return SellQuoteInputResult(0, 0, 0, 0, 0, 0)
-    
-    amount_in_before_fees = ceil_div(numerator, denominator)
-
-    # Add total fees (0.30%)
-    amount_in_after_curve_fee = ceil_div(
-        amount_in_before_fees * 10000,
-        10000 - PUMPSWAP_TOTAL_FEE_BASIS_POINTS
-    )
-
-    # Add curve fee (1%)
-    amount_in = ceil_div(
-        amount_in_after_curve_fee * 10000,
-        10000 - PUMPSWAP_CURVE_FEE_BASIS_POINTS
-    )
+    quote_amount_out = numerator // denominator
 
     # Calculate fees
-    curve_fee = amount_in - amount_in_after_curve_fee
-    total_fee = amount_in_after_curve_fee - amount_in_before_fees
-    lp_fee = (amount_in_after_curve_fee * PUMPSWAP_LP_FEE_BASIS_POINTS) // 10000
-    protocol_fee = (amount_in_after_curve_fee * PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS) // 10000
+    lp_fee = compute_fee(quote_amount_out, PUMPSWAP_LP_FEE_BASIS_POINTS)
+    protocol_fee = compute_fee(quote_amount_out, PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS)
+    coin_creator_fee = 0
+    if has_coin_creator:
+        coin_creator_fee = compute_fee(quote_amount_out, PUMPSWAP_COIN_CREATOR_FEE_BASIS_POINTS)
+
+    total_fees = lp_fee + protocol_fee + coin_creator_fee
+    if total_fees > quote_amount_out:
+        return SellBaseInputResult(0, 0, quote_amount_out)
+    
+    final_quote = quote_amount_out - total_fees
+    min_quote = calculate_with_slippage_sell(final_quote, slippage_basis_points)
+
+    return SellBaseInputResult(
+        ui_quote=final_quote,
+        min_quote=min_quote,
+        internal_quote_amount_out=quote_amount_out,
+    )
+
+def sell_quote_input_internal(
+    quote: int,
+    slippage_basis_points: int,
+    base_reserve: int,
+    quote_reserve: int,
+    has_coin_creator: bool = False,
+) -> SellQuoteInputResult:
+    """
+    Calculate base needed to receive quote amount on PumpSwap.
+    
+    100% from Rust: src/utils/calc/pumpswap.rs sell_quote_input_internal
+    """
+    if base_reserve == 0 or quote_reserve == 0:
+        return SellQuoteInputResult(0, 0, 0)
+    if quote > quote_reserve:
+        return SellQuoteInputResult(0, 0, 0)
+
+    # Calculate reverse fees
+    coin_creator_fee_bps = PUMPSWAP_COIN_CREATOR_FEE_BASIS_POINTS if has_coin_creator else 0
+    total_fee_bps = PUMPSWAP_LP_FEE_BASIS_POINTS + PUMPSWAP_PROTOCOL_FEE_BASIS_POINTS + coin_creator_fee_bps
+    
+    # Rust: raw_quote = ceil_div(quote * 10000, 10000 - total_fee_bps)
+    denominator = 10000 - total_fee_bps
+    if denominator == 0:
+        return SellQuoteInputResult(0, 0, 0)
+    
+    raw_quote = ceil_div(quote * 10000, denominator)
+
+    if raw_quote >= quote_reserve:
+        return SellQuoteInputResult(raw_quote, 0, 0)
+
+    # Rust: base_amount_in = ceil_div(base_reserve * raw_quote, quote_reserve - raw_quote)
+    numerator = base_reserve * raw_quote
+    denominator = quote_reserve - raw_quote
+    if denominator == 0:
+        return SellQuoteInputResult(raw_quote, 0, 0)
+    
+    base_amount_in = ceil_div(numerator, denominator)
+    min_quote = calculate_with_slippage_sell(quote, slippage_basis_points)
 
     return SellQuoteInputResult(
-        amount_in=amount_in,
-        fee=total_fee,
-        lp_fee=lp_fee,
-        protocol_fee=protocol_fee,
-        curve_fee=curve_fee,
+        internal_raw_quote=raw_quote,
+        base=base_amount_in,
+        min_quote=min_quote,
     )
 
 
@@ -468,7 +455,73 @@ def get_bonk_amount_in(
     return amount_in
 
 
+def _compute_raydium_cpmm_trading_fee(amount: int, fee_rate: int) -> int:
+    """Compute trading fee using ceiling division."""
+    numerator = amount * fee_rate
+    return (numerator + RAYDIUM_CPMM_FEE_RATE_DENOMINATOR - 1) // RAYDIUM_CPMM_FEE_RATE_DENOMINATOR
+
+
+def _compute_raydium_cpmm_protocol_fund_fee(amount: int, fee_rate: int) -> int:
+    """Compute protocol or fund fee using floor division."""
+    numerator = amount * fee_rate
+    return numerator // RAYDIUM_CPMM_FEE_RATE_DENOMINATOR
+
+
 # ===== Raydium CPMM Calculations =====
+# 100% from Rust: src/utils/calc/raydium_cpmm.rs
+
+
+def raydium_cpmm_compute_swap_amount(
+    base_reserve: int,
+    quote_reserve: int,
+    is_base_in: bool,
+    amount_in: int,
+    slippage_basis_points: int,
+) -> dict:
+    """
+    Compute swap parameters for Raydium CPMM.
+    
+    100% from Rust: src/utils/calc/raydium_cpmm.rs compute_swap_amount
+    
+    Returns dict with:
+        - all_trade: bool
+        - amount_in: int
+        - amount_out: int
+        - min_amount_out: int
+        - fee: int (trade_fee)
+    """
+    if base_reserve == 0 or quote_reserve == 0:
+        return {"all_trade": False, "amount_in": 0, "amount_out": 0, "min_amount_out": 0, "fee": 0}
+    
+    input_reserve, output_reserve = (base_reserve, quote_reserve) if is_base_in else (quote_reserve, base_reserve)
+    
+    # Rust: swap_base_input with is_creator_fee_on_input = True
+    trade_fee = _compute_raydium_cpmm_trading_fee(amount_in, RAYDIUM_CPMM_TRADE_FEE_RATE)
+    
+    # Creator fee is 0, so input_amount_less_fees = amount_in - trade_fee
+    input_amount_less_fees = amount_in - trade_fee
+    
+    # Protocol and fund fees (calculated from trade_fee)
+    protocol_fee = _compute_raydium_cpmm_protocol_fund_fee(trade_fee, RAYDIUM_CPMM_PROTOCOL_FEE_RATE)
+    fund_fee = _compute_raydium_cpmm_protocol_fund_fee(trade_fee, RAYDIUM_CPMM_FUND_FEE_RATE)
+    
+    # Constant product formula
+    output_amount_swapped = (output_reserve * input_amount_less_fees) // (input_reserve + input_amount_less_fees)
+    
+    # Creator fee is 0, so output_amount = output_amount_swapped
+    output_amount = output_amount_swapped
+    
+    # Apply slippage
+    min_amount_out = int(output_amount * (1.0 - slippage_basis_points / 10000.0))
+    
+    return {
+        "all_trade": True,
+        "amount_in": amount_in,
+        "amount_out": output_amount,
+        "min_amount_out": min_amount_out,
+        "fee": trade_fee,
+    }
+
 
 def raydium_cpmm_get_amount_out(
     amount_in: int,
@@ -478,18 +531,18 @@ def raydium_cpmm_get_amount_out(
     """
     Calculate output amount for Raydium CPMM.
     
-    Uses constant product formula with 0.30% fee.
+    Simplified version - for full calculation use raydium_cpmm_compute_swap_amount.
     """
     if amount_in == 0 or reserve_in == 0 or reserve_out == 0:
         return 0
 
-    # Apply fee
-    amount_in_with_fee = amount_in * (RAYDIUM_CPMM_FEE_DENOMINATOR - RAYDIUM_CPMM_FEE_NUMERATOR)
-    amount_in_with_fee = amount_in_with_fee // RAYDIUM_CPMM_FEE_DENOMINATOR
+    # Apply trade fee using ceiling division
+    trade_fee = _compute_raydium_cpmm_trading_fee(amount_in, RAYDIUM_CPMM_TRADE_FEE_RATE)
+    amount_in_less_fee = amount_in - trade_fee
 
     # Calculate output
-    numerator = amount_in_with_fee * reserve_out
-    denominator = reserve_in + amount_in_with_fee
+    numerator = amount_in_less_fee * reserve_out
+    denominator = reserve_in + amount_in_less_fee
     
     return numerator // denominator
 
@@ -502,7 +555,7 @@ def raydium_cpmm_get_amount_in(
     """
     Calculate input amount for Raydium CPMM.
     
-    Uses constant product formula with 0.30% fee.
+    Simplified version - for full calculation use raydium_cpmm_compute_swap_amount.
     """
     if amount_out == 0 or reserve_in == 0 or reserve_out == 0:
         return 0
@@ -510,15 +563,17 @@ def raydium_cpmm_get_amount_in(
     if amount_out >= reserve_out:
         return 0
 
-    # Calculate required input
+    # Calculate required input (reverse constant product)
     numerator = reserve_in * amount_out
     denominator = reserve_out - amount_out
-    amount_in = ceil_div(numerator, denominator)
-
-    # Add fee
+    amount_in_needed = ceil_div(numerator, denominator)
+    
+    # Add trade fee
+    # amount_in = amount_in_needed / (1 - trade_fee_rate/fee_denominator)
+    # Using ceiling division
     amount_in = ceil_div(
-        amount_in * RAYDIUM_CPMM_FEE_DENOMINATOR,
-        RAYDIUM_CPMM_FEE_DENOMINATOR - RAYDIUM_CPMM_FEE_NUMERATOR
+        amount_in_needed * RAYDIUM_CPMM_FEE_RATE_DENOMINATOR,
+        RAYDIUM_CPMM_FEE_RATE_DENOMINATOR - RAYDIUM_CPMM_TRADE_FEE_RATE
     )
 
     return amount_in
@@ -578,6 +633,198 @@ def raydium_amm_v4_get_amount_in(
     )
 
     return amount_in
+
+
+# ===== Price Calculation Functions =====
+# 100% port from Rust: src/utils/price/*
+
+# Constants for decimals
+DEFAULT_TOKEN_DECIMALS = 6
+SOL_DECIMALS = 9
+LAMPORTS_PER_SOL = 1_000_000_000
+SCALE = 1_000_000_000  # PumpFun scale factor
+
+
+def price_token_in_sol(
+    virtual_sol_reserves: int,
+    virtual_token_reserves: int,
+) -> float:
+    """
+    Calculate the token price in SOL based on virtual reserves.
+    
+    100% from Rust: src/utils/price/pumpfun.rs price_token_in_sol
+    
+    Args:
+        virtual_sol_reserves: Virtual SOL reserves in the bonding curve
+        virtual_token_reserves: Virtual token reserves in the bonding curve
+    
+    Returns:
+        Token price in SOL as f64
+    """
+    v_sol = virtual_sol_reserves / LAMPORTS_PER_SOL
+    v_tokens = virtual_token_reserves / SCALE
+    if v_tokens == 0.0:
+        return 0.0
+    return v_sol / v_tokens
+
+
+def price_token_in_wsol(
+    virtual_base: int,
+    virtual_quote: int,
+    real_base: int,
+    real_quote: int,
+) -> float:
+    """
+    Calculate the price of token in WSOL.
+    
+    100% from Rust: src/utils/price/bonk.rs price_token_in_wsol
+    
+    Args:
+        virtual_base: Virtual base reserves
+        virtual_quote: Virtual quote reserves
+        real_base: Real base reserves
+        real_quote: Real quote reserves
+    
+    Returns:
+        The price of token in WSOL
+    """
+    return price_base_in_quote_with_virtual(
+        virtual_base,
+        virtual_quote,
+        real_base,
+        real_quote,
+        DEFAULT_TOKEN_DECIMALS,
+        SOL_DECIMALS,
+    )
+
+
+def price_base_in_quote_with_virtual(
+    virtual_base: int,
+    virtual_quote: int,
+    real_base: int,
+    real_quote: int,
+    base_decimals: int = DEFAULT_TOKEN_DECIMALS,
+    quote_decimals: int = SOL_DECIMALS,
+) -> float:
+    """
+    Calculate the price of base in quote using virtual and real reserves.
+    
+    100% from Rust: src/utils/price/bonk.rs price_base_in_quote
+    
+    Args:
+        virtual_base: Virtual base reserves
+        virtual_quote: Virtual quote reserves
+        real_base: Real base reserves
+        real_quote: Real quote reserves
+        base_decimals: Base decimals
+        quote_decimals: Quote decimals
+    
+    Returns:
+        The price of base in quote
+    """
+    # Calculate decimal places difference
+    decimal_diff = quote_decimals - base_decimals
+    if decimal_diff >= 0:
+        decimal_factor = 10.0 ** decimal_diff
+    else:
+        decimal_factor = 1.0 / (10.0 ** (-decimal_diff))
+    
+    # Calculate reserves state before price calculation
+    quote_reserves = virtual_quote + real_quote if virtual_quote and real_quote else virtual_quote
+    base_reserves = virtual_base - real_base if virtual_base > real_base else virtual_base
+
+    if base_reserves == 0:
+        return 0.0
+
+    if decimal_factor == 0.0:
+        return 0.0
+
+    # Use floating point calculation to avoid precision loss from integer division
+    price = (quote_reserves) / (base_reserves) / decimal_factor
+
+    return price
+
+
+def price_base_in_quote(
+    base_reserve: int,
+    quote_reserve: int,
+    base_decimals: int = DEFAULT_TOKEN_DECIMALS,
+    quote_decimals: int = SOL_DECIMALS,
+) -> float:
+    """
+    Calculate the token price in quote based on base and quote reserves.
+    
+    100% from Rust: src/utils/price/common.rs price_base_in_quote
+    
+    Args:
+        base_reserve: Base reserve in the pool
+        quote_reserve: Quote reserve in the pool
+        base_decimals: Base decimals
+        quote_decimals: Quote decimals
+    
+    Returns:
+        Token price in quote as f64
+    """
+    base = base_reserve / (10.0 ** base_decimals)
+    quote = quote_reserve / (10.0 ** quote_decimals)
+    if base == 0.0:
+        return 0.0
+    return quote / base
+
+
+def price_quote_in_base(
+    base_reserve: int,
+    quote_reserve: int,
+    base_decimals: int = DEFAULT_TOKEN_DECIMALS,
+    quote_decimals: int = SOL_DECIMALS,
+) -> float:
+    """
+    Calculate the token price in base based on base and quote reserves.
+    
+    100% from Rust: src/utils/price/common.rs price_quote_in_base
+    
+    Args:
+        base_reserve: Base reserve in the pool
+        quote_reserve: Quote reserve in the pool
+        base_decimals: Base decimals
+        quote_decimals: Quote decimals
+    
+    Returns:
+        Token price in base as f64
+    """
+    base = base_reserve / (10.0 ** base_decimals)
+    quote = quote_reserve / (10.0 ** quote_decimals)
+    if quote == 0.0:
+        return 0.0
+    return base / quote
+
+
+def price_base_in_quote_from_reserves(
+    base_reserve: int,
+    quote_reserve: int,
+    base_decimals: int = DEFAULT_TOKEN_DECIMALS,
+    quote_decimals: int = SOL_DECIMALS,
+) -> float:
+    """
+    Alias for price_base_in_quote - for Raydium CPMM/AMM V4 compatibility.
+    
+    100% from Rust: src/utils/price/raydium_cpmm.rs / raydium_amm_v4.rs
+    """
+    return price_base_in_quote(base_reserve, quote_reserve, base_decimals, quote_decimals)
+
+
+def price_quote_in_base_from_reserves(
+    base_reserve: int,
+    quote_reserve: int,
+    base_decimals: int = DEFAULT_TOKEN_DECIMALS,
+    quote_decimals: int = SOL_DECIMALS,
+) -> float:
+    """
+    Alias for price_quote_in_base - for Raydium CPMM/AMM V4 compatibility.
+    
+    100% from Rust: src/utils/price/raydium_cpmm.rs / raydium_amm_v4.rs
+    """
+    return price_quote_in_base(base_reserve, quote_reserve, base_decimals, quote_decimals)
 
 
 # ===== Helper Functions =====
@@ -651,3 +898,52 @@ def tokens_to_ui_amount(amount: int, decimals: int) -> float:
 def ui_amount_to_tokens(ui_amount: float, decimals: int) -> int:
     """Convert UI amount to raw token amount"""
     return int(ui_amount * (10 ** decimals))
+
+
+# ===== Raydium CLMM Price Calculations - from Rust: src/utils/price/raydium_clmm.rs =====
+
+def price_token0_in_token1(
+    sqrt_price_x64: int,
+    decimals_token0: int,
+    decimals_token1: int,
+) -> float:
+    """
+    Calculate the price of token0 in token1 from sqrt price.
+    
+    100% from Rust: src/utils/price/raydium_clmm.rs price_token0_in_token1
+    
+    Args:
+        sqrt_price_x64: The sqrt price of the pool in Q64.64 format
+        decimals_token0: The decimals of token0
+        decimals_token1: The decimals of token1
+    
+    Returns:
+        The price of token0 in token1
+    """
+    sqrt_price = sqrt_price_x64 / (2 ** 64)  # Q64.64 to float
+    price_raw = sqrt_price * sqrt_price  # Price without decimal adjustment
+    scale = 10 ** (decimals_token0 - decimals_token1)
+    return price_raw * scale
+
+
+def price_token1_in_token0(
+    sqrt_price_x64: int,
+    decimals_token0: int,
+    decimals_token1: int,
+) -> float:
+    """
+    Calculate the price of token1 in token0 from sqrt price.
+    
+    100% from Rust: src/utils/price/raydium_clmm.rs price_token1_in_token0
+    
+    Args:
+        sqrt_price_x64: The sqrt price of the pool in Q64.64 format
+        decimals_token0: The decimals of token0
+        decimals_token1: The decimals of token1
+    
+    Returns:
+        The price of token1 in token0
+    """
+    if sqrt_price_x64 == 0:
+        return 0.0
+    return 1.0 / price_token0_in_token1(sqrt_price_x64, decimals_token0, decimals_token1)

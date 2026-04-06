@@ -5,10 +5,10 @@ Based on sol-trade-sdk Rust implementation.
 
 from typing import Dict
 
-# Fee rates (basis points)
-PROTOCOL_FEE_RATE = 100  # 1%
-PLATFORM_FEE_RATE = 50   # 0.5%
-SHARE_FEE_RATE = 25      # 0.25%
+# Fee rates (basis points) - 100% from Rust: src/instruction/utils/bonk.rs accounts
+PROTOCOL_FEE_RATE = 25   # 0.25%
+PLATFORM_FEE_RATE = 100  # 1%
+SHARE_FEE_RATE = 0       # 0%
 
 # Default virtual reserves
 DEFAULT_VIRTUAL_BASE = 1073025605596382
