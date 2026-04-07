@@ -56,11 +56,15 @@ class TradeType(Enum):
 class SwqosRegion(Enum):
     """SWQOS service regions"""
 
-    FRANKFURT = "Frankfurt"
     NEW_YORK = "NewYork"
+    FRANKFURT = "Frankfurt"
     AMSTERDAM = "Amsterdam"
+    SLC = "SLC"
     TOKYO = "Tokyo"
+    LONDON = "London"
+    LOS_ANGELES = "LosAngeles"
     SINGAPORE = "Singapore"
+    DEFAULT = "Default"
 
 
 class SwqosType(Enum):
@@ -70,13 +74,21 @@ class SwqosType(Enum):
     JITO = "Jito"
     BLOXROUTE = "Bloxroute"
     ZEROSLOT = "ZeroSlot"
+    ZERO_SLOT = "ZeroSlot"
     TEMPORAL = "Temporal"
     FLASHBLOCK = "FlashBlock"
+    FLASH_BLOCK = "FlashBlock"
     BLOCKRAZOR = "BlockRazor"
+    BLOCK_RAZOR = "BlockRazor"
     NODE1 = "Node1"
     ASTRALANE = "Astralane"
     NEXTBLOCK = "NextBlock"
+    NEXT_BLOCK = "NextBlock"
     HELIUS = "Helius"
+    STELLIUM = "Stellium"
+    LIGHTSPEED = "Lightspeed"
+    SOYAS = "Soyas"
+    SPEEDLANDING = "Speedlanding"
 
 
 # ============== Constants ==============
